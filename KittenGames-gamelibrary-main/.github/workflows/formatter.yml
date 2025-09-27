@@ -1,0 +1,38 @@
+name: JSON Validator and Fixer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-json:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install prettier
+      run: npm install -g prettier
+
+    - name: Validate and format JSON files
+      run: |
+        find . -name "*.json" -exec prettier --write {} \;
+
+    - name: Commit changes
+      run: |
+        git config --global user.name 'FormatterBot'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add .
+        if git commit -m "Fixed JSON formatting. (This action was performed automatically)"; then
+          git push
+        else
+          echo "Nothing to commit, working tree clean. Exiting successfully."
+          exit 0
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

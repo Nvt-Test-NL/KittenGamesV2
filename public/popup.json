@@ -1,0 +1,15 @@
+{
+  "popup": {
+    "enabled": true,
+    "title": "Help Keep KittenGames Alive!",
+    "message": "KittenGames isn't free for me to maintain, and I need your support to keep the project online. Any amount you can contribute is greatly appreciated!",
+    "project": {
+      "url": "https://ko-fi.com/codingkitten",
+      "image": "https://cdn.statically.io/gh/kittendevv/KittenGames-gamelibrary/refs/heads/main/images/codingkitten-Sharable-Profile)-Horizontal.jpg"
+    },
+    "button": {
+      "text": "Support Now",
+      "url": "https://ko-fi.com/codingkitten"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+    # Enables on-demand TLS with domain validation
+    on_demand_tls {
+        ask https://caddy-api.1242601565.workers.dev/cert-allow
+    }
+}
+
+:443 {
+    # Reverse proxy to your app running on localhost:3000
+    reverse_proxy http://localhost:3000
+
+    tls {
+        on_demand
+    }
+
+    encode zstd gzip
+
+    @nextStatic path /_next/static/*
+    header @nextStatic Cache-Control "public, max-age=31536000, immutable"
+
+    @nextImage path /_next/image*
+    header @nextImage Cache-Control "public, max-age=31536000, immutable"
+
+    # Reverse proxy for TMDB API with access control
+    route /proxy/* {
+        # Restrict access to only requests from the same origin (current domain)
+        @allowed {
+            header Referer {scheme}://{host}
+        }
+
+        # Proxy only allowed requests to TMDB API
+        reverse_proxy @allowed https://api.themoviedb.org/3/
+
+        # Strip /proxy/ from the URL path before forwarding it to TMDB
+        uri strip_prefix /proxy
+
+        # Set necessary headers for TMDB API
+        header_up Host api.themoviedb.org
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+
+        # Disable SSL certificate verification for the target server (TMDB)
+        transport http {
+            tls_insecure_skip_verify
+        }
+
+        # Respond with 403 if the Referer header is invalid
+        respond @allowed 403 "Forbidden"
+    }
+}
+
+# Redirect HTTP to HTTPS
+:80 {
+    encode zstd gzip
+    redir https://{host}{uri}
+}

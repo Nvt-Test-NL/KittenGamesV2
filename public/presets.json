@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Somtoday",
+    "tabName": "Somtoday",
+    "tabIcon": "https://files.catbox.moe/o45elw.ico"
+  },
+  {
+    "name": "Wikipedia",
+    "tabName": "Wikipedia the free encyclopedia",
+    "tabIcon": "https://en.wikipedia.org/favicon.ico"
+  },
+  {
+    "name": "Cloudwise",
+    "tabName": "Cloudwise",
+    "tabIcon": "https://cool.cloudwise.nl/favicon.ico"
+  },
+  {
+    "name": "Magister",
+    "tabName": "Magister",
+    "tabIcon": "https://files.catbox.moe/0ndtmt.png"
+  },
+  {
+    "name": "Gmail",
+    "tabName": "Inbox",
+    "tabIcon": "https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico"
+  },
+  {
+    "name": "Blink",
+    "tabName": "Blink Leerlingwerk",
+    "tabIcon": "https://leerling.blink.nl/statics/favicon/blink.ico"
+  },
+  {
+    "name": "Studygo",
+    "tabName": "StudyGo",
+    "tabIcon": "https://raw.githubusercontent.com/kittendevv/KittenGames-gamelibrary/refs/heads/main/images/favicon.png"
+  },
+  {
+    "name": "Noordhoff",
+    "tabName": "Noordhoff",
+    "tabIcon": "https://www.noordhoff.nl/favicon.ico"
+  },
+  {
+    "name": "Malmberg",
+    "tabName": "Malmberg",
+    "tabIcon": "https://www.malmberg.nl/favicon.ico"
+  },
+  {
+    "name": "Google Drive",
+    "tabName": "My Drive - Google Drive",
+    "tabIcon": "https://ssl.gstatic.com/images/branding/product/1x/drive_2020q4_32dp.png"
+  },
+  {
+    "name": "Google Docs",
+    "tabName": "Google Docs",
+    "tabIcon": "https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico"
+  },
+  {
+    "name": "Custom",
+    "tabName": "",
+    "tabIcon": ""
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "Example Game",
+    "type": "Arcade",
+    "cloud_save": false,
+    "added": "2025-01-01",
+    "thumbnail": "/demo-gf/example/thumb.svg",
+    "path": "example"
+  }
+]
