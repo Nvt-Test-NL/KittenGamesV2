@@ -45,12 +45,17 @@ export default function ShowDetail() {
       try {
         setLoading(true);
         const response = await axios.get(`/api/tmdb/tv/${slug}`);
+        setShow(response.data);
       } catch (error) {
         console.error("Error fetching show details:", error);
       } finally {
         setLoading(false);
       }
     };
+
+    if (slug) {
+      fetchShowDetails();
+    }
   }, [slug]);
 
   useEffect(() => {
@@ -335,3 +340,4 @@ export default function ShowDetail() {
       </div>
     </div>
   );
+}
