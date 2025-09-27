@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "../../../../components/Header";
+import MovieCard from "../../../../components/MovieCard";
 import StreamingErrorHelper from "../../../../components/StreamingErrorHelper";
 import { TVShow } from "../../../../types/tmdb";
 import { getPosterUrl, getBackdropUrl, getMovieDetails, getTVDetails } from "../../../../utils/tmdb";
@@ -44,17 +45,12 @@ export default function ShowDetail() {
       try {
         setLoading(true);
         const response = await axios.get(`/api/tmdb/tv/${slug}`);
-        setShow(response.data);
       } catch (error) {
         console.error("Error fetching show details:", error);
       } finally {
         setLoading(false);
       }
     };
-
-    if (slug) {
-      fetchShowDetails();
-    }
   }, [slug]);
 
   useEffect(() => {
@@ -336,3 +332,6 @@ export default function ShowDetail() {
         </section>
 
         {/* ... (rest of the code remains the same) */}
+      </div>
+    </div>
+  );
