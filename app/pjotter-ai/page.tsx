@@ -401,7 +401,7 @@ export default function PjotterAIPage() {
                 <li>Upload of plak een afbeelding-URL voor multimodale vragen.</li>
                 <li>LET OP: je kunt alleen .png afbeeldingen uploaden.</li>
                 <li>Je kunt vragen in Nederlands en Engelse stellen.</li>
-                <li>Shift+Enter = nieuwe regel. Enter = versturen.</li>
+                <li>Shift + Enter = nieuwe regel. Enter = versturen.</li>
                 <li>Je chat blijft lokaal opgeslagen (localStorage).</li>
               </ul>
             </div>
