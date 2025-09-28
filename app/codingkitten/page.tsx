@@ -1,11 +1,13 @@
 "use client";
 import React from "react";
+import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
 
 export default function CodingKittenPage() {
   const UNLOCK_KEY = "ck_credit_unlocked_v1";
   const [unlocked, setUnlocked] = React.useState<boolean>(false);
   const [showModal, setShowModal] = React.useState<boolean>(false);
+  const router = useRouter();
 
   React.useEffect(() => {
     try { setUnlocked(localStorage.getItem(UNLOCK_KEY) === "true"); } catch {}
@@ -15,6 +17,7 @@ export default function CodingKittenPage() {
     try { localStorage.setItem(UNLOCK_KEY, "true"); } catch {}
     setUnlocked(true);
     setShowModal(false);
+    try { router.push('/unlocked'); } catch {}
   };
   return (
     <div className="min-h-screen bg-gray-950 relative">
