@@ -1,0 +1,279 @@
+"use client"
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import Header from "../../components/Header"
+import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
+import { addDoc, arrayUnion, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
+
+// Firestore data model (MVP)
+// chats/{chatId}: { name?: string, isGroup: boolean, members: string[], createdAt, createdBy }
+// chats/{chatId}/messages/{msgId}: { sender: string, text?: string, imageDataUrl?: string, createdAt }
+// users/{uid}/profile: { displayName?: string, email?: string, updatedAt }
+// Presence written by PresenceManager at users/{uid}/presence/now
+
+// Local cache per chat for offline/quick load
+const chatCacheKey = (chatId: string) => `kg_chat_cache_${chatId}_v1`
+
+function useAuthUser() {
+  const [uid, setUid] = useState<string | null>(null)
+  const [email, setEmail] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string | null>(null)
+  useEffect(() => {
+    const auth = getFirebaseAuth()
+    return auth.onAuthStateChanged((u)=>{
+      setUid(u?.uid || null)
+      setEmail(u?.email || null)
+      setDisplayName(u?.displayName || null)
+    })
+  }, [])
+  return { uid, email, displayName }
+}
+
+async function ensureUserProfile(uid: string, email?: string|null, displayName?: string|null) {
+  const db = getDb()
+  try {
+    const ref = doc(db, 'users', uid, 'profile', 'public')
+    const snap = await getDoc(ref)
+    if (!snap.exists()) {
+      await setDoc(ref, { email: email || null, displayName: displayName || null, updatedAt: serverTimestamp() }, { merge: true })
+    }
+  } catch {}
+}
+
+async function dataUrlFromFile(file: File, maxW = 800, maxKB = 200): Promise<string> {
+  // Compress to PNG/JPEG data URL under ~200KB if possible
+  const bitmap = await createImageBitmap(file)
+  const ratio = Math.min(1, maxW / Math.max(bitmap.width, bitmap.height))
+  const w = Math.max(1, Math.round(bitmap.width * ratio))
+  const h = Math.max(1, Math.round(bitmap.height * ratio))
+  const canvas = document.createElement('canvas')
+  canvas.width = w; canvas.height = h
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  let quality = 0.8
+  let url = canvas.toDataURL('image/jpeg', quality)
+  // Try reduce size under ~maxKB
+  for (let i=0; i<4 && (url.length/1024)>maxKB; i++) {
+    quality = Math.max(0.4, quality - 0.15)
+    url = canvas.toDataURL('image/jpeg', quality)
+  }
+  return url
+}
+
+export default function ChatPage() {
+  const { uid, email, displayName } = useAuthUser()
+  const db = getDb()
+
+  const [loading, setLoading] = useState(true)
+  const [chats, setChats] = useState<any[]>([])
+  const [activeChatId, setActiveChatId] = useState<string | null>(null)
+  const [messages, setMessages] = useState<any[]>([])
+  const [composer, setComposer] = useState("")
+  const [imgPreview, setImgPreview] = useState<string>("")
+  const [userSearch, setUserSearch] = useState("")
+  const [creatingGroup, setCreatingGroup] = useState(false)
+  const [groupName, setGroupName] = useState("")
+  const [groupMembers, setGroupMembers] = useState<string>("") // comma-separated emails
+
+  // Init
+  useEffect(() => {
+    if (!uid) return
+    setLoading(true)
+    ensureUserProfile(uid, email, displayName).then(()=>{})
+    const q = query(collection(db, 'chats'), where('members', 'array-contains', uid))
+    const off = onSnapshot(q, async (snap) => {
+      const arr: any[] = []
+      snap.forEach(d => arr.push({ id: d.id, ...d.data() }))
+      setChats(arr.sort((a,b)=> (a.name||'').localeCompare(b.name||'')))
+      if (!activeChatId && arr.length) setActiveChatId(arr[0].id)
+      setLoading(false)
+    })
+    return () => off()
+  }, [uid])
+
+  // Load chat messages with local cache
+  useEffect(() => {
+    if (!activeChatId) return
+    const cacheRaw = localStorage.getItem(chatCacheKey(activeChatId))
+    if (cacheRaw) {
+      try { setMessages(JSON.parse(cacheRaw)) } catch {}
+    } else { setMessages([]) }
+
+    const q = query(collection(db, 'chats', activeChatId, 'messages'), orderBy('createdAt', 'asc'))
+    const off = onSnapshot(q, (snap) => {
+      const arr: any[] = []
+      snap.forEach(d => arr.push({ id: d.id, ...d.data() }))
+      setMessages(arr)
+      try { localStorage.setItem(chatCacheKey(activeChatId), JSON.stringify(arr)) } catch {}
+    })
+    return () => off()
+  }, [activeChatId])
+
+  const sendMessage = useCallback(async () => {
+    if (!uid || !activeChatId) return
+    const text = composer.trim()
+    if (!text && !imgPreview) return
+    setComposer("")
+    const payload: any = { sender: uid, createdAt: serverTimestamp() }
+    if (text) payload.text = text
+    if (imgPreview) payload.imageDataUrl = imgPreview
+    setImgPreview("")
+    // Optimistic local cache update
+    setMessages(prev => {
+      const temp = [...prev, { ...payload, id: `temp-${Date.now()}` }]
+      try { localStorage.setItem(chatCacheKey(activeChatId), JSON.stringify(temp)) } catch {}
+      return temp
+    })
+    await addDoc(collection(db, 'chats', activeChatId, 'messages'), payload)
+  }, [uid, activeChatId, composer, imgPreview])
+
+  // @Pjotter-AI command
+  const maybeHandleBot = useCallback(async (text: string) => {
+    if (!text.startsWith('@Pjotter-AI')) return false
+    const question = text.replace('@Pjotter-AI', '').trim()
+    if (!question) return true
+    // Add user message first
+    setComposer(question)
+    await sendMessage()
+    // Then call backend and append assistant message
+    try {
+      const sys = { role: 'system', content: 'Je bent Pjotter-AI in een chatroom. Antwoord kort en concreet in het Nederlands.' }
+      const usr = { role: 'user', content: question }
+      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [sys, usr] }) })
+      const data = await res.json().catch(()=>({choices:[{message:{content:"(geen antwoord)"}}]}))
+      const content = data?.choices?.[0]?.message?.content || '(geen antwoord)'
+      if (activeChatId) {
+        await addDoc(collection(db, 'chats', activeChatId, 'messages'), { sender: 'bot:Pjotter', text: content, createdAt: serverTimestamp() })
+      }
+    } finally {}
+    return true
+  }, [activeChatId, sendMessage])
+
+  const onComposerSubmit = useCallback(async () => {
+    const text = composer.trim()
+    if (text.startsWith('@Pjotter-AI')) {
+      const handled = await maybeHandleBot(text)
+      if (handled) { setComposer(""); return }
+    }
+    await sendMessage()
+  }, [composer, maybeHandleBot, sendMessage])
+
+  const onPickImage = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    const url = await dataUrlFromFile(f)
+    setImgPreview(url)
+  }, [])
+
+  const createDM = useCallback(async () => {
+    if (!uid || !userSearch.trim()) return
+    // DM room id: create a chat with two members if not exists
+    const otherEmail = userSearch.trim().toLowerCase()
+    // For MVP, DM by email requires that other user has profile with email; otherwise allow creating group with name
+    // We'll create a chat doc and let users join by link later.
+    const ref = await addDoc(collection(db, 'chats'), { isGroup: false, members: [uid, otherEmail], createdAt: serverTimestamp(), createdBy: uid })
+    setActiveChatId(ref.id)
+    setUserSearch("")
+  }, [uid, userSearch])
+
+  const createGroup = useCallback(async () => {
+    if (!uid) return
+    const emails = groupMembers.split(',').map(s=>s.trim()).filter(Boolean)
+    const members = Array.from(new Set([uid, ...emails]))
+    const ref = await addDoc(collection(db, 'chats'), { isGroup: true, name: groupName || 'Groep', members, createdAt: serverTimestamp(), createdBy: uid })
+    setActiveChatId(ref.id)
+    setCreatingGroup(false); setGroupName(""); setGroupMembers("")
+  }, [uid, groupName, groupMembers])
+
+  if (!uid) {
+    return (
+      <>
+        <Header currentPage="chat" />
+        <main className="container mx-auto px-4 pt-24 pb-8">
+          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-gray-200">Log in om te chatten.</div>
+        </main>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <Header currentPage="chat" />
+      <main className="container mx-auto px-4 pt-24 pb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <aside className="md:col-span-1 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="mb-3">
+              <div className="text-xs text-gray-400 mb-1">Zoek gebruiker (email) of maak DM</div>
+              <div className="flex gap-2">
+                <input value={userSearch} onChange={(e)=>setUserSearch(e.target.value)} placeholder="email@voorbeeld.nl" className="flex-1 glass-input rounded-md px-3 py-2 text-sm" />
+                <button onClick={createDM} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">DM</button>
+              </div>
+            </div>
+            <div className="mb-3">
+              <button onClick={()=>setCreatingGroup(v=>!v)} className="text-sm text-emerald-300">{creatingGroup? 'Annuleer' : '+ Nieuwe groep'}</button>
+              {creatingGroup && (
+                <div className="mt-2 space-y-2">
+                  <input value={groupName} onChange={(e)=>setGroupName(e.target.value)} placeholder="Groepsnaam" className="w-full glass-input rounded-md px-3 py-2 text-sm" />
+                  <input value={groupMembers} onChange={(e)=>setGroupMembers(e.target.value)} placeholder="Leden emails, komma-gescheiden" className="w-full glass-input rounded-md px-3 py-2 text-sm" />
+                  <button onClick={createGroup} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-100 text-sm">Aanmaken</button>
+                </div>
+              )}
+            </div>
+            <div className="text-xs text-gray-400 mb-1">Jouw chats</div>
+            <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
+              {chats.map(c => (
+                <button key={c.id} onClick={()=>setActiveChatId(c.id)} className={`w-full text-left px-3 py-2 rounded-md border ${activeChatId===c.id? 'bg-slate-800 border-emerald-500/30 text-white' : 'bg-slate-900/40 border-slate-700 text-gray-300 hover:bg-slate-800/50'}`}>
+                  <div className="text-sm font-medium">{c.name || (c.isGroup? 'Groep' : 'DM')}</div>
+                  <div className="text-[11px] text-gray-400">{Array.isArray(c.members)? c.members.length : 0} leden</div>
+                </button>
+              ))}
+              {!chats.length && <div className="text-xs text-gray-500">Nog geen chats.</div>}
+            </div>
+          </aside>
+          <section className="md:col-span-2 p-3 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col min-h-[60vh]">
+            {!activeChatId ? (
+              <div className="text-gray-400">Selecteer of maak een chat…</div>
+            ) : (
+              <>
+                <div className="flex-1 overflow-y-auto space-y-3 p-2">
+                  {messages.map(m => (
+                    <div key={m.id} className={`max-w-[85%] ${m.sender===uid? 'ml-auto' : ''}`}>
+                      <div className={`px-3 py-2 rounded-lg ${m.sender===uid? 'bg-emerald-600/20 text-white' : m.sender==='bot:Pjotter'? 'bg-slate-800/80 text-emerald-200' : 'bg-slate-800/80 text-gray-100'}`}>
+                        {m.text && <div className="whitespace-pre-wrap text-sm">{m.text}</div>}
+                        {m.imageDataUrl && (
+                          <div className="mt-2">
+                            <img src={m.imageDataUrl} className="max-h-64 rounded" alt="bijlage" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-slate-800 pt-2">
+                  {imgPreview && (
+                    <div className="mb-2">
+                      <img src={imgPreview} className="max-h-40 rounded" alt="bijlage" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input type="file" accept="image/*" onChange={onPickImage} className="hidden" id="pickImg" />
+                    <label htmlFor="pickImg" className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm cursor-pointer">📎 Foto</label>
+                    <input
+                      value={composer}
+                      onChange={(e)=>setComposer(e.target.value)}
+                      onKeyDown={(e)=>{ if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); onComposerSubmit() } }}
+                      placeholder="Bericht… Gebruik @Pjotter-AI voor AI"
+                      className="flex-1 glass-input rounded-md px-3 py-2 text-sm"
+                    />
+                    <button onClick={onComposerSubmit} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Verstuur</button>
+                  </div>
+                  <div className="mt-1 text-[11px] text-gray-500">Afbeeldingen <~200KB, lokaal gecached; transport via Firestore. Geen Storage benodigd.</div>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
+      </main>
+    </>
+  )
+}
