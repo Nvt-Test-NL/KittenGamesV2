@@ -15,6 +15,8 @@ import {
   getSimilarMovies,
   getSimilarTV,
 } from "../../utils/tmdb";
+import MovieSearchBar from "../../components/MovieSearchBar";
+import { useRouter } from "next/navigation";
 import { getHistory, onHistoryChanged, type WatchProgress } from "../../utils/history";
 import { getFavorites, onFavoritesChanged, type FavItem } from "../../utils/favorites";
 import {
@@ -27,6 +29,7 @@ import { Film, Tv, Flame, Loader2 } from "lucide-react";
 import AdInFeed from "../../components/ads/AdInFeed";
 
 export default function Movies() {
+  const router = useRouter();
   const [trendingItems, setTrendingItems] = useState<(Movie | TVShow)[]>([]);
   const [popularMovies, setPopularMovies] = useState<Movie[]>([]);
   const [popularTVShows, setPopularTVShows] = useState<TVShow[]>([]);
@@ -455,6 +458,18 @@ export default function Movies() {
       )}
 
       <main className="container mx-auto px-4 py-8 pt-24">
+        {/* Inline global search */}
+        <section className="mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <h2 className="text-white font-semibold">Search Movies & TV Shows:</h2>
+            <div className="w-full sm:w-[460px]">
+              <MovieSearchBar onResultClick={(item:any, type:'movie'|'tv')=>{
+                if (type === 'movie') router.push(`/movies/movie/${item.id}`);
+                else router.push(`/movies/show/${item.id}`);
+              }} />
+            </div>
+          </div>
+        </section>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex justify-center mb-8">
             <TabsList>
