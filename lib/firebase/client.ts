@@ -1,5 +1,5 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithRedirect } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -31,7 +31,12 @@ export function getFirebaseAuth() {
 export async function signInWithGoogle() {
   const auth = getFirebaseAuth()
   const provider = new GoogleAuthProvider()
-  await signInWithPopup(auth, provider)
+  try {
+    await signInWithPopup(auth, provider)
+  } catch {
+    // Fallback for Safari / popup-blockers
+    await signInWithRedirect(auth, provider)
+  }
 }
 
 export async function emailRegister(email: string, password: string) {
