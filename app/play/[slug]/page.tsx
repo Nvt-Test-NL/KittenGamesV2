@@ -7,12 +7,14 @@ import Header from "../../../components/Header"
 import SaveLoadModal from "../../../components/SaveLoadModal"
 import { decodeGameSlug } from "../../../utils/rot13"
 import { useGameLaunchSettings } from "../../../components/GameLaunchSettingsPanel"
+import PjotterGameOverlay from "../../../components/PjotterGameOverlay"
 
 export default function PlayGame() {
   const params = useParams()
   const router = useRouter()
   const encodedSlug = (params?.slug as string) || ''
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
+  const [assistantOpen, setAssistantOpen] = useState(false)
   
   const { confirmClose } = useGameLaunchSettings()
 
@@ -66,12 +68,18 @@ export default function PlayGame() {
         onBackClick={handleBackClick}
         onFullscreen={handleFullscreen}
         onSave={handleSave}
+        onGameAssistant={() => setAssistantOpen(true)}
       />
       <GameFrame slug={decodedSlug} />
       
       <SaveLoadModal
         isOpen={isSaveModalOpen}
         onClose={() => setIsSaveModalOpen(false)}
+      />
+      <PjotterGameOverlay
+        isOpen={assistantOpen}
+        onClose={() => setAssistantOpen(false)}
+        gameName={decodedSlug}
       />
     </div>
   )

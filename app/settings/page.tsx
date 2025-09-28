@@ -14,6 +14,8 @@ import CloakSettingsPanel from "../../components/CloakSettingsPanel"
 import GameLaunchSettingsPanel from "../../components/GameLaunchSettingsPanel"
 import GeneralSettingsPanel from "../../components/GeneralSettingsPanel"
 import StreamingSettingsPanel from "../../components/StreamingSettingsPanel"
+import SyncSettingsPanel from "../../components/SyncSettingsPanel"
+import AccountSettingsPanel from "../../components/AccountSettingsPanel"
 import HotkeysSettingsPanel from "../../components/HotkeysSettingsPanel"
 
 const categories = [
@@ -22,6 +24,8 @@ const categories = [
   { key: "hotkeys", label: "Hotkeys", icon: <KeyboardIcon className="w-5 h-5" /> },
   { key: "launch", label: "Game Launch", icon: <LaunchIcon className="w-5 h-5" /> },
   { key: "streaming", label: "Streaming", icon: <StreamingIcon className="w-5 h-5" /> },
+  { key: "sync", label: "Sync", icon: <SettingsIcon className="w-5 h-5" /> },
+  { key: "account", label: "Account", icon: <SettingsIcon className="w-5 h-5" /> },
 ]
 
 function CategoryOptions({ selected }: { selected: string }) {
@@ -36,6 +40,10 @@ function CategoryOptions({ selected }: { selected: string }) {
       return <GameLaunchSettingsPanel />
     case "streaming":
       return <StreamingSettingsPanel />
+    case "sync":
+      return <SyncSettingsPanel />
+    case "account":
+      return <AccountSettingsPanel />
     default:
       return <div>Select a category.</div>
   }

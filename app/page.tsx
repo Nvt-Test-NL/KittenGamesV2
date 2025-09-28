@@ -26,6 +26,10 @@ export default function Home() {
   const [sessionDifficulty, setSessionDifficulty] = useState<string>("easy")
   const [sessionLoading, setSessionLoading] = useState(false)
   const [sessionResults, setSessionResults] = useState<Array<{ name: string; type: string; url: string; image?: string }>>([])
+  // Quest Hub (MVP)
+  type Quest = { id: string; title: string; type: 'daily'|'weekly'; xp: number; done: boolean }
+  const [quests, setQuests] = useState<Quest[]>([])
+  const [xp, setXp] = useState<number>(0)
 
   const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category)
@@ -99,6 +103,37 @@ export default function Home() {
   useEffect(() => {
     try { setUnlocked(localStorage.getItem(UNLOCK_KEY) === 'true') } catch {}
   }, [])
+
+  // Load quests/xp from localStorage
+  useEffect(() => {
+    try {
+      const q = JSON.parse(localStorage.getItem('kg_quests_v1') || 'null')
+      const x = JSON.parse(localStorage.getItem('kg_xp_v1') || 'null')
+      if (Array.isArray(q)) setQuests(q)
+      else {
+        // seed defaults
+        setQuests([
+          { id: 'd1', title: 'Speel 1 game', type: 'daily', xp: 10, done: false },
+          { id: 'd2', title: 'Speel 10 minuten', type: 'daily', xp: 15, done: false },
+          { id: 'w1', title: 'Voeg 3 favorieten toe', type: 'weekly', xp: 40, done: false },
+        ])
+      }
+      if (typeof x === 'number') setXp(x)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    try { localStorage.setItem('kg_quests_v1', JSON.stringify(quests)) } catch {}
+  }, [quests])
+  useEffect(() => {
+    try { localStorage.setItem('kg_xp_v1', JSON.stringify(xp)) } catch {}
+  }, [xp])
+
+  const claimQuest = useCallback((id: string) => {
+    setQuests((prev) => prev.map(q => q.id === id ? { ...q, done: true } : q))
+    const q = quests.find(q=>q.id===id)
+    if (q && !q.done) setXp((v)=>v + q.xp)
+  }, [quests])
 
   // Effective selected category: when locked, prevent 'All'
   const effectiveSelectedCategory = useMemo(() => {
@@ -230,6 +265,31 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Quest Hub (MVP) */}
+        <section className="mb-8 p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-white font-semibold">Quest Hub</h2>
+            <div className="text-sm text-emerald-300">XP: <span className="font-semibold">{xp}</span></div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            {quests.map((q) => (
+              <div key={q.id} className={`flex items-center justify-between p-3 rounded-lg border ${q.type==='daily' ? 'border-cyan-400/20 bg-cyan-500/5' : 'border-emerald-400/20 bg-emerald-500/5'}`}>
+                <div className="text-sm text-gray-100">
+                  <div className="font-medium">{q.title}</div>
+                  <div className="text-xs text-gray-400 capitalize">{q.type} • {q.xp} XP</div>
+                </div>
+                <button
+                  disabled={q.done}
+                  onClick={()=>claimQuest(q.id)}
+                  className={`px-3 py-1.5 rounded-md text-sm border ${q.done ? 'opacity-60 cursor-not-allowed bg-slate-800 border-slate-700 text-gray-400' : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500/40'}`}
+                >{q.done ? 'Geclaimd' : 'Claim'}</button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-xs text-gray-400">Opslag: lokaal. Bij login kan dit naar Firestore gesynchroniseerd worden.</div>
+        </section>
+
         <GameGrid 
           onGameSelect={handleGameSelect} 
           selectedCategory={effectiveSelectedCategory} 

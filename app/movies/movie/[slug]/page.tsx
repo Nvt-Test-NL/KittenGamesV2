@@ -40,6 +40,8 @@ export default function MovieDetail() {
   const [fav, setFav] = useState<boolean>(false);
   const [similarLoading, setSimilarLoading] = useState(false);
   const [similarItems, setSimilarItems] = useState<Array<{ item: Movie | any, type: 'movie'|'tv', reason?: string }>>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchMovieDetails = async () => {
@@ -58,6 +60,33 @@ export default function MovieDetail() {
       fetchMovieDetails();
     }
   }, [slug]);
+
+  // Smart Tags via OpenRouter
+  useEffect(() => {
+    const run = async () => {
+      if (!movie) return;
+      try {
+        setTagsLoading(true);
+        setTags([]);
+        const res = await fetch('/api/ai/tags', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: movie.title,
+            overview: movie.overview,
+            genres: Array.isArray(movie.genres) ? movie.genres.map(g=>g.name) : [],
+          })
+        });
+        const data = await res.json().catch(()=>({ tags: [] }));
+        const t: string[] = Array.isArray(data?.tags) ? data.tags.slice(0,6) : [];
+        setTags(t);
+      } catch {
+        setTags([]);
+      } finally {
+        setTagsLoading(false);
+      }
+    };
+    run();
+  }, [movie]);
 
   // Fetch AI similar recs (movies + tv) with reasons
   useEffect(() => {
@@ -379,6 +408,18 @@ export default function MovieDetail() {
                       ))}
                     </div>
                   )}
+
+                  {/* Smart Tags */}
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-2">
+                      {tagsLoading && (
+                        <span className="px-2 py-1 text-xs rounded-full bg-slate-900/60 border border-slate-700 text-gray-300">Tags laden…</span>
+                      )}
+                      {!tagsLoading && tags.map((t, i) => (
+                        <span key={`tag-${i}`} className="px-2.5 py-1 text-xs rounded-full bg-emerald-500/15 text-emerald-200 border border-emerald-400/30 backdrop-blur-md">{t}</span>
+                      ))}
+                    </div>
+                  </div>
 
                   {/* Overview */}
                   <p className="text-base text-gray-300 leading-relaxed mb-6">

@@ -22,6 +22,7 @@ import {
   Bot,
   Info,
   History,
+  User,
 } from "lucide-react"
 
 import SearchBar from "./SearchBar"
@@ -29,6 +30,7 @@ import MovieSearchBar from "./MovieSearchBar" // Add this import
 import CategoryDropdown from "./CategoryDropdown"
 import TabCustomizationPopup from "./TabCustomizationPopup"
 import navbarData from "../config/navbar.json"
+import { signInWithGoogle, emailLogin, emailRegister, logout, getFirebaseAuth } from "../lib/firebase/client"
 
 // Define NavItem interface for navigation items
 interface NavItem {
@@ -67,6 +69,7 @@ interface HeaderProps {
   onSearch?: (query: string) => void;
   onFullscreen?: () => void;
   onSave?: () => void;
+  onGameAssistant?: () => void;
   compactNavbarConfig?: {
     backButtonMargin?: string;
     eyeOffButtonMargin?: string;
@@ -82,6 +85,7 @@ export default function Header({
   onSearch,
   onFullscreen,
   onSave,
+  onGameAssistant,
   compactNavbarConfig = {},
 }: HeaderProps) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false)
@@ -242,14 +246,24 @@ export default function Header({
             </button>
 
             {onSave && (
-              <button
-                onClick={onSave}
-                className="text-gray-300 w-8 h-8 flex items-center justify-center hover:bg-gray-700/70 hover:text-green-400 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
-                title="Save/Load Game Data"
-              >
-                <Save className="w-4 h-4" />
-              </button>
-            )}
+            <button
+              onClick={onSave}
+              className="text-gray-300 w-8 h-8 flex items-center justify-center hover:bg-gray-700/70 hover:text-green-400 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+              title="Save/Load Game Data"
+            >
+              <Save className="w-4 h-4" />
+            </button>
+          )}
+
+          {onGameAssistant && (
+            <button
+              onClick={onGameAssistant}
+              className="text-gray-300 w-8 h-8 flex items-center justify-center hover:bg-gray-700/70 hover:text-emerald-400 rounded-full transition-all duration-200 hover:scale-105 active:scale-95"
+              title="Pjotter‑AI Games"
+            >
+              <Bot className="w-4 h-4" />
+            </button>
+          )}
           </div>
         </div>
 
@@ -338,6 +352,23 @@ export default function Header({
             <MovieSearchBar onResultClick={handleMovieSearchResult} />
           </div>
         )}
+        {/* Account shortcut */}
+        <Link href="/settings?tab=account" className="hidden md:inline-flex text-gray-300 hover:text-white transition-colors duration-200 p-1.5 rounded-full hover:bg-slate-800/50" title="Account & Settings">
+          <User className="w-5 h-5" />
+        </Link>
+        {/* Auth controls (optional quick actions) */}
+        <div className="hidden md:flex items-center gap-2 ml-1">
+          <button
+            onClick={()=>signInWithGoogle().catch(()=>{})}
+            className="px-2.5 py-1.5 rounded-full text-xs bg-slate-900/40 text-gray-300 border border-slate-700/40 hover:border-emerald-300/30">
+            Sign in
+          </button>
+          <button
+            onClick={()=>logout().catch(()=>{})}
+            className="px-2.5 py-1.5 rounded-full text-xs bg-slate-900/40 text-gray-300 border border-slate-700/40 hover:border-emerald-300/30">
+            Logout
+          </button>
+        </div>
       </div>
     </div>
   )
