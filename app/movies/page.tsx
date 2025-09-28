@@ -41,6 +41,12 @@ export default function Movies() {
   const [whichNextLoading, setWhichNextLoading] = useState<boolean>(false);
   const [whichNextFilters, setWhichNextFilters] = useState<{ genresInclude: number[]; yearMin?: number; yearMax?: number }>({ genresInclude: [] });
   const [alreadyWatched, setAlreadyWatched] = useState<(Movie | TVShow)[]>([]);
+  const [aiWhichQuery, setAiWhichQuery] = useState<string>("");
+  const [aiWhichLoading, setAiWhichLoading] = useState<boolean>(false);
+
+  // Live search on Movies tab
+  const [movieSearch, setMovieSearch] = useState<string>("");
+  const [movieSearchResults, setMovieSearchResults] = useState<Movie[]>([]);
 
   // Refs for auto-scroll carousels
   const filmsRowRef = useRef<HTMLDivElement | null>(null);
@@ -79,6 +85,23 @@ export default function Movies() {
 
     fetchData();
   }, []);
+
+  // Live movie search results (TMDB) for Movies tab
+  useEffect(() => {
+    let alive = true;
+    const run = async () => {
+      const q = movieSearch.trim();
+      if (!q) { setMovieSearchResults([]); return; }
+      try {
+        const res = await fetch(`/api/tmdb/search/movie?query=${encodeURIComponent(q)}&page=1&language=en-US`);
+        const data = await res.json();
+        const results = Array.isArray(data?.results) ? data.results.slice(0, 12) : [];
+        if (alive) setMovieSearchResults(results);
+      } catch { if (alive) setMovieSearchResults([]); }
+    };
+    const id = window.setTimeout(run, 250);
+    return () => { alive = false; clearTimeout(id); };
+  }, [movieSearch]);
 
   // Helper to compute "Which Movie Next" using OpenRouter (server proxy)
   const computeWhichNext = useCallback(async () => {
@@ -196,6 +219,29 @@ export default function Movies() {
       cleanSeries && cleanSeries();
     };
   }, [popularMovies, popularTVShows]);
+
+  // Generic smooth auto-scroll for any horizontal rails marked with [data-autoscroll]
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const els = Array.from(document.querySelectorAll<HTMLElement>('[data-autoscroll="true"]'));
+    const timers: number[] = [];
+    for (const el of els) {
+      const id = window.setInterval(() => {
+        const max = el.scrollWidth - el.clientWidth;
+        if (max <= 0) return;
+        const hovering = el.matches(':hover');
+        if (hovering) return;
+        const nearEnd = el.scrollLeft >= max - 8;
+        const nearStart = el.scrollLeft <= 8;
+        const dir = (el.dataset.dir === 'left') ? -1 : (el.dataset.dir === 'right' ? 1 : (el.scrollLeft < max / 2 ? 1 : -1));
+        const nextDir = nearEnd ? -1 : (nearStart ? 1 : dir);
+        el.dataset.dir = nextDir > 0 ? 'right' : 'left';
+        el.scrollBy({ left: nextDir * 2, behavior: 'smooth' });
+      }, 50);
+      timers.push(id);
+    }
+    return () => { timers.forEach(clearInterval); };
+  }, [trendingItems, popularMovies, popularTVShows, continueWatching, favoritesItems, alreadyWatched, whichNext]);
 
   // Load Continue Watching from localStorage and AI recommendations
   useEffect(() => {
@@ -442,7 +488,7 @@ export default function Movies() {
               <h2 className="text-2xl font-bold text-white mb-4">Verder kijken</h2>
               {continueWatching.length > 0 ? (
                 <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4">
+                  <div className="flex gap-4" data-autoscroll="true">
                     {continueWatching.map((item: Movie | TVShow, idx: number) => (
                       <div key={`cwtab-${idx}-${('id' in item)? item.id : idx}`} className="shrink-0 w-40 sm:w-48 md:w-52">
                         <MovieCard item={item} showMarkFinished />
@@ -479,9 +525,9 @@ export default function Movies() {
               </div>
             </section>
 
-            {/* Which Movie Next */}
+            {/* Witch Movie Next! */}
             <section>
-              <h2 className="text-2xl font-bold text-white mb-4">Which Movie Next</h2>
+              <h2 className="text-2xl font-bold text-white mb-4">Witch Movie Next!</h2>
               {/* Simple filters */}
               <div className="mb-3 flex flex-wrap gap-3 items-center">
                 <div className="flex items-center gap-2 text-sm text-gray-300">
@@ -507,29 +553,61 @@ export default function Movies() {
                   </select>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-300">
-                  <label className="text-gray-400">Year ≥</label>
+                  <label className="text-gray-400">Year &gt;</label>
                   <input type="number" value={whichNextFilters.yearMin ?? ''} placeholder="e.g. 2000" onChange={(e)=>{
                     const val = e.target.value ? Number(e.target.value) : undefined;
                     setWhichNextFilters(prev=>({ ...prev, yearMin: val }));
                   }} onBlur={()=>computeWhichNext()} className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white"/>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-300">
-                  <label className="text-gray-400">Year ≤</label>
+                  <label className="text-gray-400">Year &lt;</label>
                   <input type="number" value={whichNextFilters.yearMax ?? ''} placeholder="e.g. 2025" onChange={(e)=>{
                     const val = e.target.value ? Number(e.target.value) : undefined;
                     setWhichNextFilters(prev=>({ ...prev, yearMax: val }));
                   }} onBlur={()=>computeWhichNext()} className="w-24 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white"/>
                 </div>
                 <button onClick={()=>computeWhichNext()} className="px-3 py-1.5 rounded bg-slate-800 border border-slate-700 text-gray-200 hover:bg-slate-700 text-sm">Opnieuw aanbevelen</button>
+                <div className="flex items-center gap-2 text-sm">
+                  <input
+                    value={aiWhichQuery}
+                    onChange={(e)=>setAiWhichQuery(e.target.value)}
+                    placeholder="bv. Een actie film zoals Dexter, 8 voorbeelden"
+                    className="min-w-[220px] bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white"
+                  />
+                  <button
+                    onClick={async ()=>{
+                      try {
+                        setAiWhichLoading(true);
+                        const favs: FavItem[] = getFavorites();
+                        const hist: WatchProgress[] = getHistory();
+                        const res = await fetch('/api/ai/recommend', {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ favorites: favs, history: hist, filters: whichNextFilters, prompt: aiWhichQuery })
+                        });
+                        const data = await res.json();
+                        const ids: { tmdbId: number; type: 'movie'; reason?: string }[] = Array.isArray(data?.ids) ? data.ids : [];
+                        const top = ids.slice(0, 8);
+                        const details: NextItem[] = [];
+                        for (const it of top) {
+                          try { const m = await getMovieDetails(it.tmdbId); details.push({ movie: m, reason: it.reason }); } catch {}
+                        }
+                        setWhichNext(details);
+                      } finally {
+                        setAiWhichLoading(false);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >AI search</button>
+                </div>
               </div>
-              {whichNextLoading ? (
+              {(whichNextLoading || aiWhichLoading) ? (
                 <div className="px-4 py-3 rounded-lg bg-slate-900/50 border border-slate-800 text-gray-300 inline-flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-bounce" />
                   <span>Bezig met aanbevelingen ophalen…</span>
                 </div>
               ) : whichNext.length > 0 ? (
                 <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4">
+                  <div className="flex gap-4" data-autoscroll="true">
                     {whichNext.map((item: NextItem, idx: number) => (
                       <div key={`next-${idx}-${item.movie.id}`} className="relative shrink-0 w-40 sm:w-48 md:w-52">
                         <div className="absolute -left-1 -top-2 text-6xl font-extrabold text-emerald-300/10 select-none pointer-events-none">{idx+1}</div>
@@ -555,7 +633,7 @@ export default function Movies() {
               <h2 className="text-2xl font-bold text-white mb-4">Favorieten</h2>
               {favoritesItems.length > 0 ? (
                 <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4">
+                  <div className="flex gap-4" data-autoscroll="true">
                     {favoritesItems.map((item: Movie | TVShow, idx: number) => (
                       <div key={`favtab-${idx}-${('id' in item)? item.id : idx}`} className="shrink-0 w-40 sm:w-48 md:w-52">
                         <MovieCard item={item} />
@@ -597,7 +675,7 @@ export default function Movies() {
               <section>
                 <h2 className="text-2xl font-bold text-white mb-4">Al gekeken</h2>
                 <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4">
+                  <div className="flex gap-4" data-autoscroll="true">
                     {alreadyWatched.map((item: Movie | TVShow, idx: number) => (
                       <div key={`watched-${idx}-${('id' in item)? item.id : idx}`} className="shrink-0 w-40 sm:w-48 md:w-52">
                         <MovieCard item={item} />
@@ -613,7 +691,7 @@ export default function Movies() {
               <h2 className="text-2xl font-bold text-white mb-4">Al gekeken</h2>
               {alreadyWatched.length > 0 ? (
                 <div className="overflow-x-auto pb-2">
-                  <div className="flex gap-4">
+                  <div className="flex gap-4" data-autoscroll="true">
                     {alreadyWatched.map((item: Movie | TVShow, idx: number) => (
                       <div key={`watchedtab-${idx}-${('id' in item)? item.id : idx}`} className="shrink-0 w-40 sm:w-48 md:w-52">
                         <MovieCard item={item} />
@@ -643,9 +721,31 @@ export default function Movies() {
           </TabsContent>
 
           <TabsContent value="movies" className="space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-6">
-              Popular Movies
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-2xl font-bold text-white mb-6">Popular Movies</h2>
+              <div className="ml-auto flex items-center gap-2">
+                <input
+                  value={movieSearch}
+                  onChange={(e)=>setMovieSearch(e.target.value)}
+                  placeholder="Zoek films..."
+                  className="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-white"
+                />
+              </div>
+            </div>
+            {movieSearchResults.length > 0 && (
+              <section>
+                <h3 className="text-white font-semibold mb-3">Zoekresultaten</h3>
+                <div className="overflow-x-auto pb-2">
+                  <div className="flex gap-4" data-autoscroll="true">
+                    {movieSearchResults.map((movie: Movie) => (
+                      <div key={`ms-${movie.id}`} className="shrink-0 w-40 sm:w-48 md:w-52">
+                        <MovieCard item={movie} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {popularMovies.map((movie: Movie) => (
                 <MovieCard

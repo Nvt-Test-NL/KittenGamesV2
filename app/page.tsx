@@ -1,18 +1,20 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import GameGrid from "../components/GameGrid"
 import Header from "../components/Header"
 import BackToTop from "../components/BackToTop"
 import OneTimePopup from '../components/OneTimePopup';
 import { launchGame } from "../components/GameLaunchSettingsPanel"
+import GameCard from "../components/GameGrid/GameCard"
+import type { ProcessedGame } from "../utils/gamesApi"
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [searchQuery, setSearchQuery] = useState("")
   const [aiAsk, setAiAsk] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
-  const [aiResults, setAiResults] = useState<Array<{ name: string; type: string; url: string }>>([])
+  const [aiResults, setAiResults] = useState<Array<{ name: string; type: string; url: string; image?: string }>>([])
 
   const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category)
@@ -41,7 +43,7 @@ export default function Home() {
       })
       const data = await res.json().catch(()=>({ items: [] }))
       const items: Array<{ name: string; type: string; image?: string; url: string }> = Array.isArray(data?.items) ? data.items : []
-      setAiResults(items.slice(0,5).map(x=>({ name: x.name, type: x.type, url: x.url })))
+      setAiResults(items.slice(0,8))
       if (items.length) {
         // Open best match in-site via /play
         const enc = encodeURIComponent(q.toLowerCase().replace(/\s+/g,'-'))
@@ -53,6 +55,15 @@ export default function Home() {
       setAiLoading(false)
     }
   }, [aiAsk])
+
+  const aiResultGames: ProcessedGame[] = useMemo(() => {
+    return aiResults.map((g) => ({
+      name: g.name,
+      type: g.type,
+      image: g.image || `https://via.placeholder.com/300x300/2d3748/e2e8f0?text=${encodeURIComponent(g.name)}`,
+      url: g.url,
+    }))
+  }, [aiResults])
 
   return (
     <>
@@ -76,14 +87,17 @@ export default function Home() {
             {aiLoading ? 'Zoeken…' : 'Zoek & Open'}
           </button>
         </div>
-        {aiResults.length > 0 && (
-          <div className="mb-6 text-sm text-gray-300">
-            Aanbevolen:
-            <ul className="mt-2 list-disc list-inside space-y-1">
-              {aiResults.map((g, i)=>(
-                <li key={`aires-${i}`}><a href={g.url} target="_blank" rel="noopener" className="text-emerald-300 hover:text-emerald-200 underline">{g.name}</a> <span className="text-gray-500">— {g.type}</span></li>
+        {aiResultGames.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-white font-semibold">AI Aanbevolen</h3>
+              <span className="text-xs text-gray-400">Klik op een kaart om te spelen</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+              {aiResultGames.map((game, idx) => (
+                <GameCard key={`aires-${idx}-${game.name}`} game={game} />
               ))}
-            </ul>
+            </div>
           </div>
         )}
         <GameGrid 
