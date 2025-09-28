@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Header from "../../components/Header"
 import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
-import { addDoc, arrayUnion, collection, doc, getDoc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
+import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore"
 
 // Firestore data model (MVP)
 // chats/{chatId}: { name?: string, isGroup: boolean, members: string[], createdAt, createdBy }
@@ -74,6 +74,7 @@ export default function ChatPage() {
   const [creatingGroup, setCreatingGroup] = useState(false)
   const [groupName, setGroupName] = useState("")
   const [groupMembers, setGroupMembers] = useState<string>("") // comma-separated emails
+  const [warn, setWarn] = useState<string>("")
 
   // Init
   useEffect(() => {
@@ -108,6 +109,33 @@ export default function ChatPage() {
     })
     return () => off()
   }, [activeChatId])
+
+  // Resolve profile emails -> UIDs using collectionGroup('profile') where email == value
+  const resolveEmailsToUids = useCallback(async (emails: string[]): Promise<string[]> => {
+    const unique = Array.from(new Set(emails.map(e=>e.toLowerCase())))
+    const found: string[] = []
+    const notFound: string[] = []
+    for (const em of unique) {
+      try {
+        const cg = query(collectionGroup(db, 'profile'), where('email', '==', em))
+        const snaps = await getDocs(cg)
+        if (!snaps.empty) {
+          // derive uid from path: users/{uid}/profile/{doc}
+          const anyDoc = snaps.docs[0]
+          const segments = anyDoc.ref.path.split('/');
+          const i = segments.indexOf('users')
+          const uid = segments[i+1]
+          if (uid) found.push(uid)
+        } else {
+          notFound.push(em)
+        }
+      } catch {
+        notFound.push(em)
+      }
+    }
+    if (notFound.length) setWarn(`Kon geen gebruikers vinden voor: ${notFound.join(', ')}`)
+    return found
+  }, [db])
 
   const sendMessage = useCallback(async () => {
     if (!uid || !activeChatId) return
@@ -161,29 +189,33 @@ export default function ChatPage() {
   const onPickImage = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]
     if (!f) return
+    // Hard guard on original file size (~2MB) and final URL (~250KB)
+    if (f.size > 2_000_000) { setWarn('Afbeelding is te groot (>2MB).'); return }
     const url = await dataUrlFromFile(f)
+    if ((url.length/1024) > 260) { setWarn('Afbeelding blijft te groot (>~250KB) na compressie.'); return }
     setImgPreview(url)
   }, [])
 
   const createDM = useCallback(async () => {
     if (!uid || !userSearch.trim()) return
-    // DM room id: create a chat with two members if not exists
     const otherEmail = userSearch.trim().toLowerCase()
-    // For MVP, DM by email requires that other user has profile with email; otherwise allow creating group with name
-    // We'll create a chat doc and let users join by link later.
-    const ref = await addDoc(collection(db, 'chats'), { isGroup: false, members: [uid, otherEmail], createdAt: serverTimestamp(), createdBy: uid })
+    const uids = await resolveEmailsToUids([otherEmail])
+    if (!uids.length) { setWarn('Gebruiker niet gevonden.'); return }
+    const members = Array.from(new Set([uid, ...uids]))
+    const ref = await addDoc(collection(db, 'chats'), { isGroup: false, members, createdAt: serverTimestamp(), createdBy: uid })
     setActiveChatId(ref.id)
     setUserSearch("")
-  }, [uid, userSearch])
+  }, [uid, userSearch, resolveEmailsToUids])
 
   const createGroup = useCallback(async () => {
     if (!uid) return
     const emails = groupMembers.split(',').map(s=>s.trim()).filter(Boolean)
-    const members = Array.from(new Set([uid, ...emails]))
+    const uids = await resolveEmailsToUids(emails)
+    const members = Array.from(new Set([uid, ...uids]))
     const ref = await addDoc(collection(db, 'chats'), { isGroup: true, name: groupName || 'Groep', members, createdAt: serverTimestamp(), createdBy: uid })
     setActiveChatId(ref.id)
     setCreatingGroup(false); setGroupName(""); setGroupMembers("")
-  }, [uid, groupName, groupMembers])
+  }, [uid, groupName, groupMembers, resolveEmailsToUids])
 
   if (!uid) {
     return (
@@ -200,6 +232,9 @@ export default function ChatPage() {
     <>
       <Header currentPage="chat" />
       <main className="container mx-auto px-4 pt-24 pb-8">
+        {warn && (
+          <div className="mb-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded p-2">{warn}</div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <aside className="md:col-span-1 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <div className="mb-3">
@@ -267,7 +302,7 @@ export default function ChatPage() {
                     />
                     <button onClick={onComposerSubmit} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Verstuur</button>
                   </div>
-                  <div className="mt-1 text-[11px] text-gray-500">Afbeeldingen <~200KB, lokaal gecached; transport via Firestore. Geen Storage benodigd.</div>
+                  <div className="mt-1 text-[11px] text-gray-500">Afbeeldingen &lt;~200KB, lokaal gecached; transport via Firestore. Geen Storage benodigd.</div>
                 </div>
               </>
             )}

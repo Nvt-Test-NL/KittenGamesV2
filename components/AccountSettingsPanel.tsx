@@ -1,7 +1,9 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import { getFirebaseAuth, signInWithGoogle, emailLogin, emailRegister, logout } from "../lib/firebase/client"
+import { getFirebaseAuth, signInWithGoogle, emailLogin, emailRegister, logout, getDb } from "../lib/firebase/client"
+import { updateProfile } from "firebase/auth"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 
 export default function AccountSettingsPanel() {
   const [userEmail, setUserEmail] = useState<string>("")
@@ -9,6 +11,7 @@ export default function AccountSettingsPanel() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string>("")
+  const [displayName, setDisplayName] = useState<string>("")
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -17,7 +20,30 @@ export default function AccountSettingsPanel() {
   }, [])
 
   const doGoogle = async () => { setBusy(true); setMessage(""); try { await signInWithGoogle() } catch (e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) } }
-  const doRegister = async () => { if (!userEmail || !password) { setMessage("Vul e‑mail en wachtwoord in"); return } setBusy(true); setMessage(""); try { await emailRegister(userEmail, password) } catch (e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) } }
+  const doRegister = async () => {
+    if (!userEmail || !password) { setMessage("Vul e‑mail en wachtwoord in"); return }
+    setBusy(true); setMessage("")
+    try {
+      await emailRegister(userEmail, password)
+      const auth = getFirebaseAuth()
+      if (auth.currentUser) {
+        if (displayName.trim()) {
+          await updateProfile(auth.currentUser, { displayName: displayName.trim() })
+        }
+        // Write profile doc
+        try {
+          await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), {
+            email: auth.currentUser.email || userEmail,
+            displayName: displayName.trim() || auth.currentUser.displayName || null,
+            updatedAt: serverTimestamp(),
+          }, { merge: true })
+        } catch {}
+      }
+      setMessage("Account aangemaakt.")
+    } catch (e:any) {
+      setMessage(String(e?.message||e))
+    } finally { setBusy(false) }
+  }
   const doLogin = async () => { if (!userEmail || !password) { setMessage("Vul e‑mail en wachtwoord in"); return } setBusy(true); setMessage(""); try { await emailLogin(userEmail, password) } catch (e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) } }
   const doLogout = async () => { setBusy(true); setMessage(""); try { await logout() } catch (e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) } }
 
@@ -26,7 +52,28 @@ export default function AccountSettingsPanel() {
       {currentUser ? (
         <div className="p-4 rounded-lg bg-slate-900/60 border border-slate-800">
           <div className="text-sm text-gray-300">Ingelogd als</div>
-          <div className="text-white font-medium">{currentUser.email || currentUser.displayName || currentUser.uid}</div>
+          <div className="text-white font-medium">{currentUser.displayName || currentUser.email || currentUser.uid}</div>
+          <div className="mt-3 flex items-end gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-gray-400">Weergavenaam</label>
+              <input type="text" placeholder="Jouw naam" value={displayName} onChange={(e)=>setDisplayName(e.target.value)} className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-white text-sm" />
+            </div>
+            <button
+              onClick={async()=>{
+                const auth = getFirebaseAuth(); if (!auth.currentUser) return;
+                setBusy(true); setMessage("")
+                try {
+                  if (displayName.trim()) await updateProfile(auth.currentUser, { displayName: displayName.trim() })
+                  await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), {
+                    displayName: displayName.trim(), updatedAt: serverTimestamp()
+                  }, { merge: true })
+                  setMessage("Naam bijgewerkt.")
+                } catch(e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) }
+              }}
+              disabled={busy || !displayName.trim()}
+              className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm"
+            >Opslaan</button>
+          </div>
           <button onClick={doLogout} disabled={busy} className="mt-3 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sm">Logout</button>
         </div>
       ) : (
@@ -35,6 +82,7 @@ export default function AccountSettingsPanel() {
             <div className="p-4 rounded-lg bg-slate-900/60 border border-slate-800">
               <div className="text-white font-semibold mb-2">E‑mail & wachtwoord</div>
               <div className="space-y-2">
+                <input type="text" placeholder="Weergavenaam (optioneel)" value={displayName} onChange={(e)=>setDisplayName(e.target.value)} className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-white text-sm" />
                 <input type="email" placeholder="E‑mail" value={userEmail} onChange={(e)=>setUserEmail(e.target.value)} className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-white text-sm" />
                 <input type="password" placeholder="Wachtwoord" value={password} onChange={(e)=>setPassword(e.target.value)} className="w-full px-3 py-2 rounded bg-slate-950 border border-slate-700 text-white text-sm" />
                 <div className="flex gap-2">
