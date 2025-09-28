@@ -33,10 +33,8 @@ async function ensureUserProfile(uid: string, email?: string|null, displayName?:
   const db = getDb()
   try {
     const ref = doc(db, 'users', uid, 'profile', 'public')
-    const snap = await getDoc(ref)
-    if (!snap.exists()) {
-      await setDoc(ref, { email: email || null, displayName: displayName || null, updatedAt: serverTimestamp() }, { merge: true })
-    }
+    const emailLower = (email || '').toLowerCase() || null
+    await setDoc(ref, { email: email || null, emailLower, displayName: displayName || null, updatedAt: serverTimestamp() }, { merge: true })
   } catch {}
 }
 
@@ -117,7 +115,7 @@ export default function ChatPage() {
     const notFound: string[] = []
     for (const em of unique) {
       try {
-        const cg = query(collectionGroup(db, 'profile'), where('email', '==', em))
+        const cg = query(collectionGroup(db, 'profile'), where('emailLower', '==', em))
         const snaps = await getDocs(cg)
         if (!snaps.empty) {
           // derive uid from path: users/{uid}/profile/{doc}
