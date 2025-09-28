@@ -25,6 +25,7 @@ export default function PjotterGameOverlay({ gameName, isOpen, onClose }: Props)
   const [isLoading, setIsLoading] = useState(false);
   const [permissionNeeded, setPermissionNeeded] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>("");
+  const [hideDuringCapture, setHideDuringCapture] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -34,6 +35,9 @@ export default function PjotterGameOverlay({ gameName, isOpen, onClose }: Props)
       try {
         // Ask only once per open
         setPermissionNeeded(false);
+        // Hide the overlay momentarily so it won't appear in the screenshot
+        setHideDuringCapture(true);
+        await new Promise(r=>requestAnimationFrame(()=>r(undefined)));
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
         const video = document.createElement('video');
         video.srcObject = stream;
@@ -53,6 +57,9 @@ export default function PjotterGameOverlay({ gameName, isOpen, onClose }: Props)
         stream.getTracks().forEach(t => t.stop());
       } catch (e) {
         setPermissionNeeded(true);
+      } finally {
+        // Show overlay again
+        setHideDuringCapture(false);
       }
     };
     tryCapture();
@@ -77,9 +84,14 @@ export default function PjotterGameOverlay({ gameName, isOpen, onClose }: Props)
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: next }),
       });
-      const data = await res.json().catch(()=>({choices:[{message:{content:"(geen antwoord)"}}]}));
-      const content = data?.choices?.[0]?.message?.content || "";
-      setMessages((prev)=>[...prev, { role:'assistant', content }]);
+      if (!res.ok) {
+        const err = await res.json().catch(()=>({ error: `HTTP ${res.status}` }));
+        setMessages((prev)=>[...prev, { role:'assistant', content: `Kon geen antwoord ophalen (${err?.error||'server error'}). Probeer opnieuw of zonder screenshot.` }]);
+      } else {
+        const data = await res.json().catch(()=>({choices:[{message:{content:"(geen antwoord)"}}]}));
+        const content = data?.choices?.[0]?.message?.content || "(geen antwoord)";
+        setMessages((prev)=>[...prev, { role:'assistant', content }]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +102,7 @@ export default function PjotterGameOverlay({ gameName, isOpen, onClose }: Props)
   return (
     <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative z-10 w-full md:w-[720px] mx-2 rounded-2xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-4">
+      <div className="relative z-10 w-full md:w-[720px] mx-2 rounded-2xl border border-slate-700 bg-slate-900/95 backdrop-blur-xl shadow-2xl p-4" style={{ opacity: hideDuringCapture ? 0 : 1 }}>
         <div className="flex items-center justify-between mb-2">
           <div className="text-white font-semibold">Pjotter‑AI Games • {gameName}</div>
           <button onClick={onClose} className="text-gray-300 hover:text-white">✕</button>

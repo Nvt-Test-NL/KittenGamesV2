@@ -7,7 +7,7 @@ import Header from "../../../../components/Header";
 import MovieCard from "../../../../components/MovieCard";
 import StreamingErrorHelper from "../../../../components/StreamingErrorHelper";
 import { TVShow } from "../../../../types/tmdb";
-import { getPosterUrl, getBackdropUrl, getMovieDetails, getTVDetails } from "../../../../utils/tmdb";
+import { getPosterUrl, getBackdropUrl, getMovieDetails, getTVDetails, getSimilarTV } from "../../../../utils/tmdb";
 import { getStreamingUrl, getStreamingSettings, getNextDomainId, setStreamingSettings } from "../../../../components/StreamingSettingsPanel";
 import { Loader2, Star, Calendar, ChevronLeft, Play } from "lucide-react";
 import { addFavorite, removeFavorite, isFavorite, getFavorites } from "../../../../utils/favorites";
@@ -92,7 +92,14 @@ export default function ShowDetail() {
           body: JSON.stringify({ target: { tmdbId: Number(slug), type: 'tv' }, favorites: favs, history: hist })
         });
         const data = await res.json();
-        const ids: { tmdbId: number; type: 'movie'|'tv'; reason?: string }[] = Array.isArray(data?.ids) ? data.ids : [];
+        let ids: { tmdbId: number; type: 'movie'|'tv'; reason?: string }[] = Array.isArray(data?.ids) ? data.ids : [];
+        // Fallback: TMDB similar if AI returned nothing
+        if (ids.length === 0) {
+          try {
+            const sim = await getSimilarTV(Number(slug));
+            ids = (Array.isArray(sim?.results) ? sim.results.slice(0, 10) : []).map((m: any)=>({ tmdbId: m.id, type: 'tv' as const }));
+          } catch {}
+        }
         const details: Array<{ item: any, type: 'movie'|'tv', reason?: string }> = [];
         for (const x of ids) {
           try {

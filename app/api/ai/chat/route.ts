@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "OPENROUTER_API_KEY is not configured on the server." },
+      { error: "OPENROUTER_API_KEY missing. Set it in Vercel Project Environment to enable chat." },
       { status: 500 }
     );
   }
@@ -24,6 +24,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "messages must be an array" }, { status: 400 });
   }
 
+  // Normalize messages: convert any multi-part (text + image_url) into plain text
+  // so the selected model (which may not be vision-capable) can respond.
+  const normalized = messages.map((m: any) => {
+    const role = m?.role;
+    const content = m?.content;
+    if (Array.isArray(content)) {
+      const texts: string[] = [];
+      for (const part of content) {
+        if (part?.type === 'text' && typeof part?.text === 'string') {
+          texts.push(part.text);
+        } else if (part?.type === 'image_url') {
+          texts.push('[screenshot provided]');
+        }
+      }
+      return { role, content: texts.join('\n') };
+    }
+    return { role, content: typeof content === 'string' ? content : '' };
+  });
+
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.headers.get("origin") || undefined;
 
   try {
@@ -36,7 +55,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "x-ai/grok-4-fast:free",
-        messages,
+        messages: normalized,
         // keep temperature modest for chat
         temperature: 0.7,
         // disable reasoning mode unless requested explicitly
