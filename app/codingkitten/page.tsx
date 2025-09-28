@@ -121,9 +121,8 @@ export default function CodingKittenPage() {
             <h2 className="text-white font-semibold mb-3">CodingKitten Credit Video</h2>
             <p className="text-gray-300 text-sm mb-2">Kijk de volledige video om All games en Pjotter‑AI te ontgrendelen.</p>
             <div className="aspect-video w-full rounded-lg overflow-hidden border border-slate-800 bg-black">
-              {/* TODO: vervang de src door jouw definitieve video-URL */}
               <video controls className="w-full h-full" onEnded={onVideoEnded}>
-                <source src="/videos/codingkitten-credit.mp4" type="video/mp4" />
+                <source src="/public/videos/Codingkitten (Video).mp4" type="video/mp4" />
                 Je browser ondersteunt geen HTML5 video.
               </video>
             </div>

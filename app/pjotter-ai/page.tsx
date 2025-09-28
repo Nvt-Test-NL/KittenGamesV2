@@ -23,11 +23,14 @@ type ChatSession = {
 export default function PjotterAIPage() {
   const router = useRouter();
   const CONSENT_KEY = "pjotter_ai_consent_v1";
+  const UNLOCK_KEY = "ck_credit_unlocked_v1";
 
   // Multi-session state
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentId, setCurrentId] = useState<string>("");
   const [consented, setConsented] = useState<boolean>(true);
+  const [unlocked, setUnlocked] = useState<boolean>(true);
+  const [showUnlockModal, setShowUnlockModal] = useState<boolean>(false);
 
   // Active messages are derived from current session
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -48,6 +51,12 @@ export default function PjotterAIPage() {
     try {
       const c = localStorage.getItem(CONSENT_KEY);
       if (c !== "true") setConsented(false);
+    } catch {}
+
+    // Check CodingKitten credit unlock
+    try {
+      const u = localStorage.getItem(UNLOCK_KEY);
+      if (u !== "true") setUnlocked(false);
     } catch {}
 
     try {
@@ -286,10 +295,27 @@ export default function PjotterAIPage() {
     upsertCurrentSession(seed);
   };
 
+  const onUnlockEnded = () => {
+    try { localStorage.setItem(UNLOCK_KEY, "true"); } catch {}
+    setUnlocked(true);
+    setShowUnlockModal(false);
+  }
+
   return (
     <div className="min-h-screen bg-gray-950">
       <Header currentPage="pjotter-ai" />
-      <main className={`container mx-auto px-4 py-8 pt-24 ${!consented ? 'pointer-events-none blur-[1px]' : ''}`}>
+      <main className={`container mx-auto px-4 py-8 pt-24 ${(!consented || !unlocked) ? 'pointer-events-none blur-[1px]' : ''}`}>
+        {!unlocked && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-400/30 text-amber-100">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-sm">Kijk eerst de <strong>CodingKitten credit video</strong> om <strong>Pjotter‑AI</strong> te gebruiken.</span>
+              <div className="flex items-center gap-2">
+                <a href="/codingkitten" className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-100 text-sm border border-slate-700">Naar CodingKitten</a>
+                <button onClick={()=>setShowUnlockModal(true)} className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm">Bekijk video hier</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="flex flex-col lg:flex-row gap-6">
           <div className="flex-1">
             <h1 className="text-2xl font-bold text-white mb-4">Pjotter-AI</h1>
@@ -437,6 +463,27 @@ export default function PjotterAIPage() {
               >
                 Weiger
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Unlock Modal for CodingKitten credit */}
+      {showUnlockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setShowUnlockModal(false)} />
+          <div className="relative z-10 w-[95%] max-w-3xl rounded-2xl border border-slate-700 bg-slate-900/90 p-4 shadow-2xl">
+            <h2 className="text-white font-semibold mb-3">CodingKitten Credit Video</h2>
+            <p className="text-gray-300 text-sm mb-2">Kijk de volledige video om Pjotter‑AI te ontgrendelen.</p>
+            <div className="aspect-video w-full rounded-lg overflow-hidden border border-slate-800 bg-black">
+              <video controls className="w-full h-full" onEnded={onUnlockEnded}>
+                <source src="/videos/Codingkitten (Video).mp4" type="video/mp4" />
+                Je browser ondersteunt geen HTML5 video.
+              </video>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-gray-500">Je moet de video volledig uitkijken.</span>
+              <button onClick={()=>setShowUnlockModal(false)} className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700">Sluiten</button>
             </div>
           </div>
         </div>
