@@ -17,7 +17,7 @@ export default function PrivacyPage() {
         <section className="space-y-4 mb-8">
           <h2 className="text-xl font-semibold text-white">Verwerkingsverantwoordelijke</h2>
           <p className="text-gray-300">
-            Pjotters-Company is de verwerkingsverantwoordelijke. Contact: <span className="text-gray-200">[pjotters-chain@gmail.com]</span>.
+            Pjotters-Company is de verwerkingsverantwoordelijke. Contact: <span className="text-gray-200">[pjotterschain@gmail.com]</span>.
           </p>
         </section>
 

@@ -3,6 +3,19 @@ import React from "react";
 import Header from "../../components/Header";
 
 export default function CodingKittenPage() {
+  const UNLOCK_KEY = "ck_credit_unlocked_v1";
+  const [unlocked, setUnlocked] = React.useState<boolean>(false);
+  const [showModal, setShowModal] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    try { setUnlocked(localStorage.getItem(UNLOCK_KEY) === "true"); } catch {}
+  }, []);
+
+  const onVideoEnded = () => {
+    try { localStorage.setItem(UNLOCK_KEY, "true"); } catch {}
+    setUnlocked(true);
+    setShowModal(false);
+  };
   return (
     <div className="min-h-screen bg-gray-950 relative">
       {/* Decorative background */}
@@ -25,6 +38,20 @@ export default function CodingKittenPage() {
                 Dank voor het fundament dat je hebt gelegd. Deze pagina is een blijvende herinnering aan de reis
                 en de community die daardoor is ontstaan.
               </p>
+              <div className="mt-4 flex items-center gap-3">
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white">
+                  Bekijk de CodingKitten credit video
+                </button>
+                {unlocked ? (
+                  <span className="px-2 py-1 text-xs rounded-full bg-emerald-500/20 text-emerald-200 border border-emerald-300/30">
+                    Ontgrendeld: All games + Pjotter‑AI
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-400">Kijk de video helemaal uit om te ontgrendelen</span>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -81,10 +108,32 @@ export default function CodingKittenPage() {
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur-md p-6">
           <h3 className="text-lg font-semibold text-white mb-2">Credits</h3>
           <p className="text-gray-300">
-            Gemaakt door CodingKitten en Pjotters-Company. Deze pagina eert het verleden en kijkt vooruit.
+            Gemaakt door CodingKitten en Pieter. Deze pagina eert het verleden en kijkt vooruit.
           </p>
         </section>
       </main>
+
+      {/* Video Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setShowModal(false)} />
+          <div className="relative z-10 w-[95%] max-w-3xl rounded-2xl border border-slate-700 bg-slate-900/90 p-4 shadow-2xl">
+            <h2 className="text-white font-semibold mb-3">CodingKitten Credit Video</h2>
+            <p className="text-gray-300 text-sm mb-2">Kijk de volledige video om All games en Pjotter‑AI te ontgrendelen.</p>
+            <div className="aspect-video w-full rounded-lg overflow-hidden border border-slate-800 bg-black">
+              {/* TODO: vervang de src door jouw definitieve video-URL */}
+              <video controls className="w-full h-full" onEnded={onVideoEnded}>
+                <source src="/videos/codingkitten-credit.mp4" type="video/mp4" />
+                Je browser ondersteunt geen HTML5 video.
+              </video>
+            </div>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-xs text-gray-500">Je moet de video volledig uitkijken.</span>
+              <button onClick={()=>setShowModal(false)} className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700">Sluiten</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

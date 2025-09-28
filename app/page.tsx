@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import GameGrid from "../components/GameGrid"
 import Header from "../components/Header"
 import BackToTop from "../components/BackToTop"
@@ -15,6 +15,8 @@ export default function Home() {
   const [aiAsk, setAiAsk] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResults, setAiResults] = useState<Array<{ name: string; type: string; url: string; image?: string }>>([])
+  const UNLOCK_KEY = "ck_credit_unlocked_v1"
+  const [unlocked, setUnlocked] = useState<boolean>(false)
   // AI Game Matchmaker
   const [moodPrompt, setMoodPrompt] = useState("")
   const [matchLoading, setMatchLoading] = useState(false)
@@ -41,6 +43,7 @@ export default function Home() {
   }, [])
 
   const handleAiAsk = useCallback(async () => {
+    if (!unlocked) return
     const q = aiAsk.trim()
     if (!q) return
     try {
@@ -92,6 +95,17 @@ export default function Home() {
     }))
   }, [sessionResults])
 
+  // Load unlock flag
+  useEffect(() => {
+    try { setUnlocked(localStorage.getItem(UNLOCK_KEY) === 'true') } catch {}
+  }, [])
+
+  // Effective selected category: when locked, prevent 'All'
+  const effectiveSelectedCategory = useMemo(() => {
+    if (unlocked) return selectedCategory
+    return selectedCategory === 'All' ? 'puzzle' : selectedCategory
+  }, [unlocked, selectedCategory])
+
   return (
     <>
       <Header 
@@ -100,6 +114,14 @@ export default function Home() {
         onSearch={handleSearch}
       />
       <main className="container mx-auto px-4 pt-24 pb-8"> {/* Ensure consistent top padding */}
+        {!unlocked && (
+          <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-400/30 text-amber-100">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-sm">Om <strong>All games</strong> en <strong>Pjotter‑AI</strong> te gebruiken, kijk eerst de <strong>CodingKitten credit video</strong>.</span>
+              <a href="/codingkitten" className="px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm">Ga naar CodingKitten</a>
+            </div>
+          </div>
+        )}
         {/* Ask Pjotter-AI for a game */}
         <div className="mb-6 p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-col md:flex-row gap-3 items-center">
           <div className="text-sm text-gray-300 md:w-48">Ask Pjotter‑AI</div>
@@ -108,9 +130,10 @@ export default function Home() {
             value={aiAsk}
             onChange={(e)=>setAiAsk(e.target.value)}
             placeholder="bijv. een race game zonder schieten"
-            className="flex-1 glass-input rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+            className={`flex-1 glass-input rounded-md px-3 py-2 text-sm focus:outline-none ${unlocked ? 'focus:border-emerald-400' : 'opacity-60'}`}
+            disabled={!unlocked}
           />
-          <button onClick={handleAiAsk} disabled={aiLoading} className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white">
+          <button onClick={handleAiAsk} disabled={aiLoading || !unlocked} className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white">
             {aiLoading ? 'Zoeken…' : 'Zoek & Open'}
           </button>
         </div>
@@ -136,10 +159,11 @@ export default function Home() {
               value={moodPrompt}
               onChange={(e)=>setMoodPrompt(e.target.value)}
               placeholder="bv. 5 cozy games met korte sessies"
-              className="flex-1 glass-input rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+              className={`flex-1 glass-input rounded-md px-3 py-2 text-sm focus:outline-none ${unlocked ? 'focus:border-emerald-400' : 'opacity-60'}`}
+              disabled={!unlocked}
             />
             <button
-              disabled={matchLoading || !moodPrompt.trim()}
+              disabled={matchLoading || !moodPrompt.trim() || !unlocked}
               onClick={async ()=>{
                 try {
                   setMatchLoading(true)
@@ -168,7 +192,7 @@ export default function Home() {
             <div className="text-white font-semibold">Smart Game Sessions</div>
             <div className="flex items-center gap-2 text-sm text-gray-300">
               <label className="text-gray-400">Duur</label>
-              <select value={sessionDuration} onChange={(e)=>setSessionDuration(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white">
+              <select value={sessionDuration} onChange={(e)=>setSessionDuration(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" disabled={!unlocked}>
                 <option value="10">10 min</option>
                 <option value="20">20 min</option>
                 <option value="45">45 min</option>
@@ -176,14 +200,14 @@ export default function Home() {
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-300">
               <label className="text-gray-400">Moeilijkheid</label>
-              <select value={sessionDifficulty} onChange={(e)=>setSessionDifficulty(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white">
+              <select value={sessionDifficulty} onChange={(e)=>setSessionDifficulty(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" disabled={!unlocked}>
                 <option value="easy">Makkelijk</option>
                 <option value="medium">Gemiddeld</option>
                 <option value="hard">Moeilijk</option>
               </select>
             </div>
             <button
-              disabled={sessionLoading}
+              disabled={sessionLoading || !unlocked}
               onClick={async ()=>{
                 try {
                   setSessionLoading(true)
@@ -208,7 +232,7 @@ export default function Home() {
         </div>
         <GameGrid 
           onGameSelect={handleGameSelect} 
-          selectedCategory={selectedCategory} 
+          selectedCategory={effectiveSelectedCategory} 
           searchQuery={searchQuery} 
         />
       </main>
