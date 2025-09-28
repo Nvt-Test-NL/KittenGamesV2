@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Header from "../../../../components/Header";
+import MovieCard from "../../../../components/MovieCard";
 import StreamingErrorHelper from "../../../../components/StreamingErrorHelper";
 import { Movie } from "../../../../types/tmdb";
 import { getPosterUrl, getBackdropUrl, getMovieDetails, getTVDetails } from "../../../../utils/tmdb";

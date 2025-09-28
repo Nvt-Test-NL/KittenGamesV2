@@ -5,6 +5,42 @@
     "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/cowbay.png",
     "url": "https://jamestore214.github.io/g3/class-309"
   },
+  {
+    "name": "Flare",
+    "type": "RPG",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/flare.png",
+    "url": "https://github.com/clintbellanger/flare-engine"
+  },
+  {
+    "name": "Trigger Rally",
+    "type": "Racing",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/flare.png",
+    "url": "https://codeartemis.github.io/TriggerRally/server/public/"
+  },
+  {
+    "name": "Micropolis",
+    "type": "idle",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/city.png",
+    "url": "https://www.graememcc.co.uk/micropolisJS/"
+  },
+  {
+    "name": "FreeCIV",
+    "type": "city",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/city.png",
+    "url": "https://www.freecivweb.com"
+  },
+  {
+    "name": "KittenGames 2.0",
+    "type": "idle",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/city.png",
+    "url": "https://radon.games/games#google_vignette"
+  },
+  {
+    "name": "Micropolis",
+    "type": "idle",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/city.png",
+    "url": "https://www.graememcc.co.uk/micropolisJS/"
+  },
    {
     "name": "Temple Run 2",
     "type": "platformer",

@@ -1,8 +1,18 @@
 "use client";
 
-import React from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import Header from "../../../../components/Header";
+import MovieCard from "../../../../components/MovieCard";
+import StreamingErrorHelper from "../../../../components/StreamingErrorHelper";
+import { TVShow } from "../../../../types/tmdb";
+import { getPosterUrl, getBackdropUrl, getMovieDetails, getTVDetails } from "../../../../utils/tmdb";
+import { getStreamingUrl, getStreamingSettings, getNextDomainId, setStreamingSettings } from "../../../../components/StreamingSettingsPanel";
+import { Loader2, Star, Calendar, ChevronLeft, Play } from "lucide-react";
+import { getFavorites } from "../../../../utils/favorites";
+import { upsertProgress, getHistory } from "../../../../utils/history";
+import axios from "axios";
 
 export default function ShowDetail() {
   const router = useRouter();
