@@ -55,6 +55,8 @@ const navItems: NavItem[] = [
   { id: "games", label: "Games", href: "/", icon: Gamepad },
   { id: "movies", label: "Movies", href: "/movies", icon: Film },
   { id: "pjotter-ai", label: "Pjotter-AI", href: "/pjotter-ai", icon: Bot },
+  { id: "chat", label: "Chat", href: "/chat", icon: MessageCirclePlus },
+  { id: "live", label: "Live", href: "/live", icon: History },
   { id: "codingkitten", label: "CodingKitten", href: "/codingkitten", icon: Info },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
   { id: "about", label: "About Us", href: "/about", icon: Info },
@@ -359,7 +361,9 @@ export default function Header({
         {/* Auth controls (optional quick actions) */}
         <div className="hidden md:flex items-center gap-2 ml-1">
           <button
-            onClick={()=>signInWithGoogle().catch(()=>{})}
+            onClick={async()=>{
+              try { await signInWithGoogle() } catch { router.push('/settings?tab=account') }
+            }}
             className="px-2.5 py-1.5 rounded-full text-xs bg-slate-900/40 text-gray-300 border border-slate-700/40 hover:border-emerald-300/30">
             Sign in
           </button>

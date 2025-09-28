@@ -19,7 +19,25 @@ export default function AccountSettingsPanel() {
     return () => unsub()
   }, [])
 
-  const doGoogle = async () => { setBusy(true); setMessage(""); try { await signInWithGoogle() } catch (e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) } }
+  const doGoogle = async () => {
+    setBusy(true); setMessage("")
+    try {
+      await signInWithGoogle()
+      const auth = getFirebaseAuth()
+      if (auth.currentUser) {
+        try {
+          const email = auth.currentUser.email || ""
+          const emailLower = email.toLowerCase()
+          await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), {
+            email,
+            emailLower,
+            displayName: auth.currentUser.displayName || null,
+            updatedAt: serverTimestamp(),
+          }, { merge: true })
+        } catch {}
+      }
+    } catch (e:any) { setMessage(String(e?.message||e)) } finally { setBusy(false) }
+  }
   const doRegister = async () => {
     if (!userEmail || !password) { setMessage("Vul e‑mail en wachtwoord in"); return }
     setBusy(true); setMessage("")
@@ -32,8 +50,11 @@ export default function AccountSettingsPanel() {
         }
         // Write profile doc
         try {
+          const email = auth.currentUser.email || userEmail
+          const emailLower = (email || "").toLowerCase()
           await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), {
-            email: auth.currentUser.email || userEmail,
+            email,
+            emailLower,
             displayName: displayName.trim() || auth.currentUser.displayName || null,
             updatedAt: serverTimestamp(),
           }, { merge: true })
