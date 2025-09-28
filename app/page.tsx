@@ -8,6 +8,8 @@ import OneTimePopup from '../components/OneTimePopup';
 import { launchGame } from "../components/GameLaunchSettingsPanel"
 import GameCard from "../components/GameGrid/GameCard"
 import type { ProcessedGame } from "../utils/gamesApi"
+import { getHistory, onHistoryChanged, type WatchProgress } from "../utils/history"
+import { getFavorites, onFavoritesChanged, type FavItem } from "../utils/favorites"
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState("All")
@@ -30,6 +32,8 @@ export default function Home() {
   type Quest = { id: string; title: string; type: 'daily'|'weekly'; xp: number; done: boolean }
   const [quests, setQuests] = useState<Quest[]>([])
   const [xp, setXp] = useState<number>(0)
+  const [histNow, setHistNow] = useState<WatchProgress[]>([])
+  const [favsNow, setFavsNow] = useState<FavItem[]>([])
 
   const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category)
@@ -122,6 +126,16 @@ export default function Home() {
     } catch {}
   }, [])
 
+  // Live datasets for quest completion
+  useEffect(() => {
+    const updateHist = () => setHistNow(getHistory())
+    const updateFavs = () => setFavsNow(getFavorites())
+    updateHist(); updateFavs()
+    const offH = onHistoryChanged(updateHist)
+    const offF = onFavoritesChanged(updateFavs)
+    return () => { offH && offH(); offF && offF() }
+  }, [])
+
   useEffect(() => {
     try { localStorage.setItem('kg_quests_v1', JSON.stringify(quests)) } catch {}
   }, [quests])
@@ -129,11 +143,29 @@ export default function Home() {
     try { localStorage.setItem('kg_xp_v1', JSON.stringify(xp)) } catch {}
   }, [xp])
 
+  const isQuestCompleted = useCallback((q: Quest): boolean => {
+    if (q.id === 'd1') {
+      // Played at least one game/movie/series
+      return histNow.length > 0
+    }
+    if (q.id === 'd2') {
+      // Played/watched for 10 minutes (>= 600s) in any entry
+      return histNow.some(h => (h.lastPositionSec ?? 0) >= 600)
+    }
+    if (q.id === 'w1') {
+      // Added 3 favorites
+      return favsNow.length >= 3
+    }
+    return false
+  }, [histNow, favsNow])
+
   const claimQuest = useCallback((id: string) => {
-    setQuests((prev) => prev.map(q => q.id === id ? { ...q, done: true } : q))
-    const q = quests.find(q=>q.id===id)
-    if (q && !q.done) setXp((v)=>v + q.xp)
-  }, [quests])
+    const q = quests.find(x => x.id === id)
+    if (!q) return
+    if (!isQuestCompleted(q) || q.done) return
+    setQuests((prev) => prev.map(item => item.id === id ? { ...item, done: true } : item))
+    setXp((v)=>v + q.xp)
+  }, [quests, isQuestCompleted])
 
   // Effective selected category: when locked, prevent 'All'
   const effectiveSelectedCategory = useMemo(() => {
@@ -273,19 +305,21 @@ export default function Home() {
             <div className="text-sm text-emerald-300">XP: <span className="font-semibold">{xp}</span></div>
           </div>
           <div className="grid md:grid-cols-2 gap-3">
-            {quests.map((q) => (
+            {quests.map((q) => {
+              const completed = isQuestCompleted(q)
+              return (
               <div key={q.id} className={`flex items-center justify-between p-3 rounded-lg border ${q.type==='daily' ? 'border-cyan-400/20 bg-cyan-500/5' : 'border-emerald-400/20 bg-emerald-500/5'}`}>
                 <div className="text-sm text-gray-100">
                   <div className="font-medium">{q.title}</div>
-                  <div className="text-xs text-gray-400 capitalize">{q.type} • {q.xp} XP</div>
+                  <div className="text-xs text-gray-400 capitalize">{q.type} • {q.xp} XP {(!q.done && !completed) ? '• niet voltooid' : ''}</div>
                 </div>
                 <button
-                  disabled={q.done}
+                  disabled={q.done || !completed}
                   onClick={()=>claimQuest(q.id)}
                   className={`px-3 py-1.5 rounded-md text-sm border ${q.done ? 'opacity-60 cursor-not-allowed bg-slate-800 border-slate-700 text-gray-400' : 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500/40'}`}
-                >{q.done ? 'Geclaimd' : 'Claim'}</button>
+                >{q.done ? 'Geclaimd' : (completed ? 'Claim' : 'Nog niet')}</button>
               </div>
-            ))}
+            )})}
           </div>
           <div className="mt-2 text-xs text-gray-400">Opslag: lokaal. Bij login kan dit naar Firestore gesynchroniseerd worden.</div>
         </section>
