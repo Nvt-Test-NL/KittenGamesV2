@@ -53,6 +53,7 @@ const navItems: NavItem[] = [
   { id: "games", label: "Games", href: "/", icon: Gamepad },
   { id: "movies", label: "Movies", href: "/movies", icon: Film },
   { id: "pjotter-ai", label: "Pjotter-AI", href: "/pjotter-ai", icon: Bot },
+  { id: "codingkitten", label: "CodingKitten", href: "/codingkitten", icon: Info },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
   { id: "about", label: "About Us", href: "/about", icon: Info },
   { id: "updates", label: "Updates", href: "/updates", icon: History },

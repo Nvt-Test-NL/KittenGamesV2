@@ -15,6 +15,15 @@ export default function Home() {
   const [aiAsk, setAiAsk] = useState("")
   const [aiLoading, setAiLoading] = useState(false)
   const [aiResults, setAiResults] = useState<Array<{ name: string; type: string; url: string; image?: string }>>([])
+  // AI Game Matchmaker
+  const [moodPrompt, setMoodPrompt] = useState("")
+  const [matchLoading, setMatchLoading] = useState(false)
+  const [matchResults, setMatchResults] = useState<Array<{ name: string; type: string; url: string; image?: string }>>([])
+  // Smart Game Sessions
+  const [sessionDuration, setSessionDuration] = useState<string>("10")
+  const [sessionDifficulty, setSessionDifficulty] = useState<string>("easy")
+  const [sessionLoading, setSessionLoading] = useState(false)
+  const [sessionResults, setSessionResults] = useState<Array<{ name: string; type: string; url: string; image?: string }>>([])
 
   const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category)
@@ -65,6 +74,24 @@ export default function Home() {
     }))
   }, [aiResults])
 
+  const matchResultGames: ProcessedGame[] = useMemo(() => {
+    return matchResults.map((g) => ({
+      name: g.name,
+      type: g.type,
+      image: g.image || `https://via.placeholder.com/300x300/2d3748/e2e8f0?text=${encodeURIComponent(g.name)}`,
+      url: g.url,
+    }))
+  }, [matchResults])
+
+  const sessionResultGames: ProcessedGame[] = useMemo(() => {
+    return sessionResults.map((g) => ({
+      name: g.name,
+      type: g.type,
+      image: g.image || `https://via.placeholder.com/300x300/2d3748/e2e8f0?text=${encodeURIComponent(g.name)}`,
+      url: g.url,
+    }))
+  }, [sessionResults])
+
   return (
     <>
       <Header 
@@ -100,6 +127,85 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* AI Game Matchmaker */}
+        <div className="mb-8 p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="text-white font-semibold">AI Game Matchmaker</div>
+            <input
+              value={moodPrompt}
+              onChange={(e)=>setMoodPrompt(e.target.value)}
+              placeholder="bv. 5 cozy games met korte sessies"
+              className="flex-1 glass-input rounded-md px-3 py-2 text-sm focus:outline-none focus:border-emerald-400"
+            />
+            <button
+              disabled={matchLoading || !moodPrompt.trim()}
+              onClick={async ()=>{
+                try {
+                  setMatchLoading(true)
+                  setMatchResults([])
+                  const res = await fetch('/api/ai/games/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: moodPrompt }) })
+                  const data = await res.json().catch(()=>({ items: [] }))
+                  const items: Array<{ name: string; type: string; image?: string; url: string }> = Array.isArray(data?.items) ? data.items : []
+                  setMatchResults(items.slice(0,8))
+                } finally { setMatchLoading(false) }
+              }}
+              className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white"
+            >{matchLoading ? 'Zoeken…' : 'Vind games'}</button>
+          </div>
+          {matchResultGames.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+              {matchResultGames.map((game, idx) => (
+                <GameCard key={`match-${idx}-${game.name}`} game={game} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Smart Game Sessions */}
+        <div className="mb-10 p-4 rounded-2xl bg-slate-900/60 border border-slate-800">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <div className="text-white font-semibold">Smart Game Sessions</div>
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <label className="text-gray-400">Duur</label>
+              <select value={sessionDuration} onChange={(e)=>setSessionDuration(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white">
+                <option value="10">10 min</option>
+                <option value="20">20 min</option>
+                <option value="45">45 min</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-300">
+              <label className="text-gray-400">Moeilijkheid</label>
+              <select value={sessionDifficulty} onChange={(e)=>setSessionDifficulty(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white">
+                <option value="easy">Makkelijk</option>
+                <option value="medium">Gemiddeld</option>
+                <option value="hard">Moeilijk</option>
+              </select>
+            </div>
+            <button
+              disabled={sessionLoading}
+              onClick={async ()=>{
+                try {
+                  setSessionLoading(true)
+                  setSessionResults([])
+                  const prompt = `Geef games uit mijn bibliotheek die passen bij een sessie van ${sessionDuration} minuten en een ${sessionDifficulty} moeilijkheid. Variatie oké, korte uitleg niet nodig.`
+                  const res = await fetch('/api/ai/games/search', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: prompt }) })
+                  const data = await res.json().catch(()=>({ items: [] }))
+                  const items: Array<{ name: string; type: string; image?: string; url: string }> = Array.isArray(data?.items) ? data.items : []
+                  setSessionResults(items.slice(0,8))
+                } finally { setSessionLoading(false) }
+              }}
+              className="px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white"
+            >{sessionLoading ? 'Zoeken…' : 'Stel sessie voor'}</button>
+          </div>
+          {sessionResultGames.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
+              {sessionResultGames.map((game, idx) => (
+                <GameCard key={`sess-${idx}-${game.name}`} game={game} />
+              ))}
+            </div>
+          )}
+        </div>
         <GameGrid 
           onGameSelect={handleGameSelect} 
           selectedCategory={selectedCategory} 
