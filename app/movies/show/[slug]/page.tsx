@@ -291,6 +291,7 @@ export default function ShowDetail() {
                     <a href={embedUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs">Open in new tab</a>
                   </div>
                 </div>
+              )}
               </div>
 
                 {/* Show Info */}
