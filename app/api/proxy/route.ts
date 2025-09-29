@@ -24,6 +24,9 @@ const ALLOWLIST: string[] = [
   'wikipedia.org',
   'en.wikipedia.org',
   'nl.wikipedia.org',
+  // Requested extras
+  'google.com','www.google.com',
+  'somtoday.nl','www.somtoday.nl',
 ]
 
 const DENYLIST: string[] = [
@@ -93,13 +96,16 @@ export async function GET(req: NextRequest) {
   // Never forward cookies/authorization
 
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 20_000)
+  const timeout = setTimeout(() => controller.abort(), 30_000)
 
   let upstream: Response
   try {
     upstream = await fetch(target.toString(), {
       method: 'GET',
-      headers,
+      headers: {
+        ...headers,
+        'accept-encoding': 'gzip, deflate, br',
+      },
       redirect: 'follow',
       signal: controller.signal,
     })
@@ -135,4 +141,4 @@ export async function GET(req: NextRequest) {
 }
 
 export const dynamic = 'force-dynamic'
-export const runtime = 'edge'
+export const runtime = 'nodejs'

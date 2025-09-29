@@ -6,6 +6,24 @@
     "url": "https://jamestore214.github.io/g3/class-309"
   },
   {
+    "name": "Tiktok Pjotter-Proxy",
+    "type": "proxy",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/",
+    "url": "https://tiktok.nl"
+  },
+  {
+    "name": "Instagram Pjotter-Proxy",
+    "type": "proxy",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/",
+    "url": "https://instagram.nl"
+  },
+  {
+    "name": "Snapchat Pjotter-Proxy",
+    "type": "proxy",
+    "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/",
+    "url": "https://snapchat.nl"
+  },
+  {
     "name": "Paper.io",
     "type": "multiplayer",
     "image": "https://cdn.statically.io/gh/CodingKitten-YT/KittenGames-gamelibrary/main/images/",
