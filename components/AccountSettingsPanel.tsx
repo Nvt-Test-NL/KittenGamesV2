@@ -121,7 +121,10 @@ export default function AccountSettingsPanel() {
           {message && <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded px-3 py-2">{message}</div>}
         </>
       )}
-      <div className="text-xs text-gray-400">Accounts zijn optioneel. Bij inloggen worden sync‑toggles toegepast voor Favorites / History / Quests.</div>
+      <div className="text-xs text-gray-400">Accounts zijn optioneel met uizondering van: CatGames-Chat en CatGames-Proxy. Bij inloggen worden sync‑toggles toegepast voor Favorites / History / Quests.</div>
+      <div className="text-xs text-gray-400">Het aanmaken van een account is volledig gratis en geen verplichte stap.</div>
+      <div className="text-xs text-gray-400">Catgames brengt nooit zo maar kosten aan bij gebruikers. Catgames biedt momenteel geen optie's tot betalen.</div>
+
     </div>
   )
 }
