@@ -84,4 +84,41 @@ export const proxySites: ProxySite[] = [
       { label: 'SearXNG', url: 'https://search.bus-hit.me' }
     ]
   },
+  {
+    id: 'proxy',
+    title: 'Proxy Croxy',
+    directUrl: 'https://www.google.com',
+    tags: ['search'],
+    instances: [
+      { label: 'Croxy', url: 'https://51.159.195.115/search?q=snapchat&rdr=1&rdrig=CAA44D2FDE8E481C893C20D796C1BB7F&ntref=1&__cpo=aHR0cHM6Ly93d3cuYmluZy5jb20' }
+    ]
+  },
+  {
+    id: 'snapchat',
+    title: 'Snapchat via Croxy',
+    directUrl: 'https://www.google.com',
+    tags: ['social','snapchat'],
+    instances: [
+      { label: 'Snapchat', url: 'https://51.159.195.115/search?q=snapchat&rdr=1&rdrig=CAA44D2FDE8E481C893C20D796C1BB7F&ntref=1&__cpo=aHR0cHM6Ly93d3cuYmluZy5jb20' }
+    ]
+  },
+  {
+    id: 'tiktok',
+    title: 'Tiktok via ProxiTok',
+    directUrl: 'https://proxitok.pabloferreiro.es',
+    tags: ['social','tiktok'],
+    instances: [
+      { label: 'ProxiTok #1', url: 'https://proxitok.pabloferreiro.es' },
+      { label: 'ProxiTok #2', url: 'https://proxitok.r4fo.com' },
+    ]
+  },
+  {
+    id: 'Tiktok met Proxy',
+    title: 'Proxy Croxy',
+    directUrl: 'https://www.google.com',
+    tags: ['search'],
+    instances: [
+      { label: 'SearXNG', url: 'https://51.159.195.115/search?q=snapchat&rdr=1&rdrig=CAA44D2FDE8E481C893C20D796C1BB7F&ntref=1&__cpo=aHR0cHM6Ly93d3cuYmluZy5jb20' }
+    ]
+  },
 ]

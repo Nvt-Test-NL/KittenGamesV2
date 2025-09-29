@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import Header from "../../../../components/Header"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
@@ -24,6 +24,8 @@ export default function ProxySitePage() {
   const [url, setUrl] = useState(site?.directUrl || '')
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState("")
+  const [expanded, setExpanded] = useState(false)
+  const frameWrapRef = useRef<HTMLDivElement|null>(null)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -67,6 +69,25 @@ export default function ProxySitePage() {
 
   const croxyMain = 'https://www.croxyproxy.com/'
   const croxyServers = 'https://www.croxyproxy.com/servers'
+  const openInNewTabHref = src || undefined
+  const openProxyNewTabHref = url && uid ? `/api/proxy?url=${encodeURIComponent(url)}&uid=${encodeURIComponent(uid)}` : undefined
+
+  const toggleFullscreen = async () => {
+    try {
+      const el = frameWrapRef.current
+      if (!el) { setExpanded(e=>!e); return }
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen()
+        setExpanded(true)
+      } else {
+        await document.exitFullscreen()
+        setExpanded(false)
+      }
+    } catch {
+      // fallback to expanded layout only
+      setExpanded(e=>!e)
+    }
+  }
 
   return (
     <>
@@ -101,13 +122,20 @@ export default function ProxySitePage() {
         <div className="mb-2 flex gap-2">
           <input value={url} onChange={(e)=>setUrl(e.target.value)} onKeyDown={(e)=>{ if (e.key==='Enter') buildSrc(url) }} placeholder="https://..." className="flex-1 glass-input rounded-md px-3 py-2 text-sm" />
           <button onClick={()=>buildSrc(url)} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Open</button>
+          <button onClick={toggleFullscreen} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">{expanded? 'Verklein' : 'Vergroot'}</button>
+          {openInNewTabHref && (
+            <a href={openInNewTabHref} target="_blank" className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Open nieuw tab</a>
+          )}
+          {mode==='proxy' && openProxyNewTabHref && (
+            <a href={openProxyNewTabHref} target="_blank" className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Proxy in tab</a>
+          )}
         </div>
         {error && <div className="mb-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded p-2">{error}</div>}
 
         {/* Mini display */}
-        <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900/60" style={{minHeight:'60vh'}}>
+        <div ref={frameWrapRef} className={`rounded-xl overflow-hidden border border-slate-800 bg-slate-900/60 ${expanded? 'fixed inset-0 z-40 m-0 rounded-none' : ''}`} style={{minHeight: expanded? undefined : '60vh'}}>
           {src ? (
-            <iframe src={src} className="w-full h-[70vh]" sandbox="allow-scripts allow-same-origin allow-forms" />
+            <iframe src={src} className={`${expanded? 'w-screen h-screen' : 'w-full h-[70vh]'}`} sandbox="allow-scripts allow-same-origin allow-forms allow-popups" />
           ) : (
             <div className="p-6 text-gray-400 text-sm">Geen bron.</div>
           )}
