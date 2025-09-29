@@ -130,8 +130,7 @@ export default function AboutPage() {
         </section>
       </main>
       <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-gray-500">Je moet de video volledig uitkijken. Bron vermelding (image + text): Github - kittendev. (Let op: Repository onbekend) </span>
-              <button onClick={()=>setShowUnlockModal(false)} className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700">Sluiten</button>
+              <span className="text-xs text-gray-500">Bron vermelding (image + text): Github - kittendev. (Let op: Repository onbekend) </span>
             </div>
     </div>
   );
