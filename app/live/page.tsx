@@ -29,12 +29,19 @@ export default function LivePage() {
   const [friends, setFriends] = useState<PresenceEntry[]>([])
 
   useEffect(() => {
-    // Events
-    const qev = query(collection(db, 'live', 'default', 'events'))
-    const off1 = onSnapshot(qev, (snap) => {
+    // Events (support both 'events' and 'event' collection names)
+    const qEvents = query(collection(db, 'live', 'default', 'events'))
+    const qEvent = query(collection(db, 'live', 'default', 'event'))
+    const off1 = onSnapshot(qEvents, (snap) => {
       const arr: LiveEvent[] = []
       snap.forEach(d => arr.push({ id: d.id, ...(d.data() as any) }))
       setEvents(arr)
+    })
+    const off1b = onSnapshot(qEvent, (snap) => {
+      const arr: LiveEvent[] = []
+      snap.forEach(d => arr.push({ id: d.id, ...(d.data() as any) }))
+      // If 'events' already has items, prefer it; else fall back to 'event'
+      setEvents(prev => prev.length ? prev : arr)
     })
     // Presence (collectionGroup)
     const qp = query(collectionGroup(db, 'presence'))
@@ -51,7 +58,7 @@ export default function LivePage() {
       arr.sort((a,b)=> (Number(!!b.online)-Number(!!a.online)))
       setFriends(arr)
     })
-    return () => { off1(); off2() }
+    return () => { off1(); off1b(); off2() }
   }, [db])
 
   const news = useMemo(() => {

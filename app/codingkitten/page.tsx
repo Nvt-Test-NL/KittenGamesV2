@@ -75,7 +75,7 @@ export default function CodingKittenPage() {
                 Helaas hebben we ook in deze tijd afscheid moeten nemen van de starter van deze site: CodingKittenGames.
                 We willen graag onze hartelijke dank uiten voor de tijd die jij besteedde aan deze site en de jij gemaakte
                 momenten. We hopen dat jij nog steeds een plezier vindt in de games die we hier hebben. Gelukkig stoppen we niet
-                volledig, maar de site is overgenomen door de Pjotter-Company.
+                volledig, maar de site is overgenomen.
               </p>
 
               {/* Mini timeline + gallery */}
@@ -130,8 +130,8 @@ export default function CodingKittenPage() {
               </video>
             </div>
             <div className="mt-3 flex items-center justify-between">
-              <span className="text-xs text-gray-500">Je moet de video volledig uitkijken.</span>
-              <button onClick={()=>setShowModal(false)} className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700">Sluiten</button>
+              <span className="text-xs text-gray-500">Je moet de video volledig uitkijken. Bron vermelding (image + text): Github - kittendev. (Let op: Repository onbekend) </span>
+              <button onClick={()=>setShowUnlockModal(false)} className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700">Sluiten</button>
             </div>
           </div>
         </div>
