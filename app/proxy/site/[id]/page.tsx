@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
-import Header from "../../../components/Header"
+import Header from "../../../../components/Header"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { proxySites } from "../../../config/proxySites"
-import { getFirebaseAuth } from "../../../lib/firebase/client"
+import { proxySites } from "../../../../config/proxySites"
+import { getFirebaseAuth } from "../../../../lib/firebase/client"
 import { ExternalLink, Lock } from "lucide-react"
 
 function normalizeUrl(input: string): string | null {
