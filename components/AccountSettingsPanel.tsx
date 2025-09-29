@@ -124,6 +124,12 @@ export default function AccountSettingsPanel() {
       <div className="text-xs text-gray-400">Accounts zijn optioneel met uizondering van: CatGames-Chat en CatGames-Proxy. Bij inloggen worden sync‑toggles toegepast voor Favorites / History / Quests.</div>
       <div className="text-xs text-gray-400">Het aanmaken van een account is volledig gratis en geen verplichte stap.</div>
       <div className="text-xs text-gray-400">Catgames brengt nooit zo maar kosten aan bij gebruikers. Catgames biedt momenteel geen optie's tot betalen.</div>
+      <div className="text-xs text-gray-400">Let op: Catgames-Accounts zijn tijdelijk uitgeschakeld wegens technische problemen.</div>
+      <div className="text-xs text-gray-400">Vanaf 2025-10-01 wordt het ook verplicht om voor Pjotter-AI een account te hebben.</div>
+      <div className="text-xs text-gray-400">Met vriendelijke groet, team CatGames.</div>
+
+
+
 
     </div>
   )
