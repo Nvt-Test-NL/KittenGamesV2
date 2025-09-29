@@ -45,9 +45,36 @@ const HOP_BY_HOP = new Set([
   'set-cookie','cookie','authorization','alt-svc','report-to','nel','content-security-policy','content-security-policy-report-only'
 ])
 
+// Simple in-memory rate limit per uid per day (best-effort; instances may reset)
+const LIMIT_PER_DAY = 25
+const usageMap: Map<string, { day: string, count: number }> = new Map()
+
+function checkAndInc(uid: string): { allowed: boolean, remaining: number } {
+  const day = new Date().toISOString().slice(0,10)
+  const key = uid
+  const cur = usageMap.get(key)
+  if (!cur || cur.day !== day) {
+    usageMap.set(key, { day, count: 0 })
+  }
+  const entry = usageMap.get(key)!
+  if (entry.count >= LIMIT_PER_DAY) {
+    return { allowed: false, remaining: 0 }
+  }
+  entry.count += 1
+  return { allowed: true, remaining: Math.max(0, LIMIT_PER_DAY - entry.count) }
+}
+
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url')
+  const uid = req.nextUrl.searchParams.get('uid')
+  if (!uid) return NextResponse.json({ error: 'Auth required', message: 'Login required to use proxy' }, { status: 401 })
   if (!url) return NextResponse.json({ error: 'Missing url' }, { status: 400 })
+
+  // Rate limit per uid per day
+  const rl = checkAndInc(uid)
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Rate limit exceeded', message: '25 requests per day per account' }, { status: 429 })
+  }
 
   let target: URL
   try { target = new URL(url) } catch { return NextResponse.json({ error: 'Invalid url' }, { status: 400 }) }
@@ -78,7 +105,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (e:any) {
     clearTimeout(timeout)
-    return NextResponse.json({ error: 'Upstream fetch failed', message: String(e?.message||e) }, { status: 502 })
+    return NextResponse.json({ error: 'Upstream fetch failed', host: target.hostname, message: String(e?.message||e) }, { status: 502 })
   }
   clearTimeout(timeout)
 
@@ -98,11 +125,14 @@ export async function GET(req: NextRequest) {
   resHeaders.set('access-control-allow-origin', '*')
 
   // Return streamed response
-  return new NextResponse(upstream.body, {
+  const resp = new NextResponse(upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: resHeaders,
   })
+  resp.headers.set('x-rate-limit-remaining', String(rl.remaining))
+  return resp
 }
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'edge'
