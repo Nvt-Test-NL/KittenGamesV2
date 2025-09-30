@@ -35,6 +35,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
         const seg = d.ref.path.split('/')
         const i = seg.indexOf('users')
         const uid = i>=0? seg[i+1] : undefined
+        if (seg[seg.length-1] !== 'public') return
         const data = d.data() as any
         arr.push({ uid, ...data })
       })
@@ -58,6 +59,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
           const seg = d.ref.path.split('/')
           const i = seg.indexOf('users')
           const uid = i>=0? seg[i+1] : undefined
+          if (seg[seg.length-1] !== 'public') return
           const data = d.data() as any
           arr.push({ uid, ...data })
         })
@@ -71,6 +73,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
           const seg = d.ref.path.split('/')
           const i = seg.indexOf('users')
           const uid = i>=0? seg[i+1] : undefined
+          if (seg[seg.length-1] !== 'public') return
           const data = d.data() as any
           arr.push({ uid, ...data })
         })

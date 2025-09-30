@@ -46,11 +46,14 @@ export default function FeedbackPage() {
   useEffect(() => auth.onAuthStateChanged(u => setUid(u?.uid || null)), [auth])
 
   useEffect(() => {
-    const q = query(collection(db, 'feedbackIdeas'), where('status','==', selected), orderBy('createdAt','desc'))
+    const q = query(collection(db, 'feedbackIdeas'))
     const off = onSnapshot(q, snap => {
-      const arr: Idea[] = []
-      snap.forEach(d => arr.push({ id: d.id, ...(d.data() as any) }))
-      setIdeas(arr)
+      const all: Idea[] = []
+      snap.forEach(d => all.push({ id: d.id, ...(d.data() as any) }))
+      // Filter by selected tab and sort by createdAt desc (client-side)
+      const filtered = all.filter(x => x.status === selected)
+      filtered.sort((a,b) => (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
+      setIdeas(filtered)
     })
     return () => off()
   }, [db, selected])
