@@ -25,9 +25,11 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
   const loadDefault = async () => {
     setLoading(true); setError("")
     try {
-      if (!uid) { setItems([]); return }
+      console.debug('[UserSearch] loadDefault start, uid=', uid)
+      if (!uid) { console.debug('[UserSearch] no uid, abort'); setItems([]); return }
       // List visible users (no efficient ORDER BY without index; keep simple and small)
       const qv = query(collectionGroup(db, 'profile'), where('searchVisible', '==', true), limit(30))
+      console.debug('[UserSearch] query default:', { cg: 'profile', where: 'searchVisible==true', limit: 30 })
       const snap = await getDocs(qv)
       const arr: PublicProfile[] = []
       snap.forEach(d => {
@@ -36,11 +38,13 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
         const i = seg.indexOf('users')
         const uid = i>=0? seg[i+1] : undefined
         if (seg[seg.length-1] !== 'public') return
+        console.debug('[UserSearch] doc path:', d.ref.path)
         const data = d.data() as any
         arr.push({ uid, ...data })
       })
       setItems(arr)
-    } catch (e:any) { setError(String(e?.message||e)) }
+      console.debug('[UserSearch] default count:', arr.length)
+    } catch (e:any) { console.debug('[UserSearch] error default:', e); setError(String(e?.message||e)) }
     finally { setLoading(false) }
   }
 
@@ -49,10 +53,12 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
     if (!term) { loadDefault(); return }
     setLoading(true); setError("")
     try {
-      if (!uid) { setItems([]); return }
+      console.debug('[UserSearch] doExactSearch term=', term)
+      if (!uid) { console.debug('[UserSearch] no uid, abort'); setItems([]); return }
       const emailLower = term.includes('@')? term.toLowerCase() : undefined
       if (emailLower) {
         const q1 = query(collectionGroup(db, 'profile'), where('emailLower','==', emailLower))
+        console.debug('[UserSearch] query exact email:', { cg: 'profile', where: `emailLower==${emailLower}` })
         const snap = await getDocs(q1)
         const arr: PublicProfile[] = []
         snap.forEach(d => {
@@ -60,13 +66,16 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
           const i = seg.indexOf('users')
           const uid = i>=0? seg[i+1] : undefined
           if (seg[seg.length-1] !== 'public') return
+          console.debug('[UserSearch] doc path:', d.ref.path)
           const data = d.data() as any
           arr.push({ uid, ...data })
         })
         setItems(arr)
+        console.debug('[UserSearch] exact count:', arr.length)
       } else {
         // Fallback: fetch visible list and filter by displayName contains (client-side)
         const qv = query(collectionGroup(db, 'profile'), where('searchVisible', '==', true), limit(50))
+        console.debug('[UserSearch] query by displayName (client filter):', { cg: 'profile', where: 'searchVisible==true', limit: 50 })
         const snap = await getDocs(qv)
         const arr: PublicProfile[] = []
         snap.forEach(d => {
@@ -74,19 +83,21 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
           const i = seg.indexOf('users')
           const uid = i>=0? seg[i+1] : undefined
           if (seg[seg.length-1] !== 'public') return
+          console.debug('[UserSearch] doc path:', d.ref.path)
           const data = d.data() as any
           arr.push({ uid, ...data })
         })
         const s = term.toLowerCase()
         setItems(arr.filter(x => (x.displayName||'').toLowerCase().includes(s)))
+        console.debug('[UserSearch] visible count before filter:', arr.length)
       }
-    } catch (e:any) { setError(String(e?.message||e)) }
+    } catch (e:any) { console.debug('[UserSearch] error exact:', e); setError(String(e?.message||e)) }
     finally { setLoading(false) }
   }
 
   useEffect(() => {
     const auth = getFirebaseAuth()
-    const off = auth.onAuthStateChanged(u => setUid(u?.uid || null))
+    const off = auth.onAuthStateChanged(u => { console.debug('[UserSearch] auth changed uid=', u?.uid); setUid(u?.uid || null) })
     return () => off()
   }, [])
 

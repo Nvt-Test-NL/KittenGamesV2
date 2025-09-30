@@ -55,11 +55,22 @@ service cloud.firestore {
     // Feedback: admin applications (top-level; write-only for users)
     match /feedbackApplications/{id} {
       allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.email is string
         && request.resource.data.motivation is string;
       allow read, update, delete: if false;
+    }
+
+    // Invites: public read so links work pre-login; create/update guarded
+    match /invites/{id} {
+      allow create: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.code is string;
+      allow read: if true;
+      allow update: if request.auth != null
+        && resource.data.used == false
+        && request.resource.data.used == true;
+      allow delete: if false;
     }
   }
 }

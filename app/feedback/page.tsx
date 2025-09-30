@@ -35,6 +35,7 @@ export default function FeedbackPage() {
   const [uid, setUid] = useState<string | null>(null)
   const [selected, setSelected] = useState<StatusKey>('idea')
   const [ideas, setIdeas] = useState<Idea[]>([])
+  const [profiles, setProfiles] = useState<Record<string, {displayName?: string|null, email?: string|null}>>({})
   const [title, setTitle] = useState("")
   const [detail, setDetail] = useState("")
   const [showApply, setShowApply] = useState(false)
@@ -46,17 +47,55 @@ export default function FeedbackPage() {
   useEffect(() => auth.onAuthStateChanged(u => setUid(u?.uid || null)), [auth])
 
   useEffect(() => {
-    const q = query(collection(db, 'feedbackIdeas'))
-    const off = onSnapshot(q, snap => {
-      const all: Idea[] = []
-      snap.forEach(d => all.push({ id: d.id, ...(d.data() as any) }))
-      // Filter by selected tab and sort by createdAt desc (client-side)
-      const filtered = all.filter(x => x.status === selected)
-      filtered.sort((a,b) => (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
-      setIdeas(filtered)
+    // Subscribe both top-level and legacy path, merge client-side
+    const q1 = query(collection(db, 'feedbackIdeas'))
+    const off1 = onSnapshot(q1, snap => {
+      const arr: Idea[] = []
+      snap.forEach(d => arr.push({ id: d.id, ...(d.data() as any) }))
+      setIdeas(prev => {
+        // merge with any legacy already set; we'll let the legacy subscription also update
+        const merged = [...arr]
+        return merged.filter(x => x.status === selected).sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
+      })
     })
-    return () => off()
+    const q2 = query(collection(db, 'feedback', 'ideas'))
+    const off2 = onSnapshot(q2, snap => {
+      const legacy: Idea[] = []
+      snap.forEach(d => legacy.push({ id: d.id, ...(d.data() as any) }))
+      setIdeas(prev => {
+        const map = new Map<string, Idea>()
+        ;[...prev, ...legacy].forEach(it => { map.set(it.id, it) })
+        const merged = Array.from(map.values())
+        return merged.filter(x => x.status === selected).sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
+      })
+    })
+    return () => { off1(); off2() }
   }, [db, selected])
+
+  // Load display names/emails for creators and voters
+  useEffect(() => {
+    const uids = new Set<string>()
+    ideas.forEach(it => {
+      if (it.createdBy) uids.add(it.createdBy)
+      const vs = it.votes ? Object.keys(it.votes) : []
+      vs.forEach(v=>uids.add(v))
+    })
+    const need = Array.from(uids).filter(u => !profiles[u])
+    if (!need.length) return
+    ;(async()=>{
+      const next: Record<string, {displayName?: string|null, email?: string|null}> = {}
+      for (const u of need) {
+        try {
+          const snap = await getDoc(doc(db, 'users', u, 'profile', 'public'))
+          const d = snap.data() as any
+          next[u] = { displayName: d?.displayName || null, email: d?.email || null }
+        } catch {
+          next[u] = {}
+        }
+      }
+      setProfiles(p => ({ ...p, ...next }))
+    })()
+  }, [ideas, db])
 
   const submitIdea = async () => {
     if (!uid) { setMsg('Login vereist.'); return }
@@ -114,6 +153,7 @@ export default function FeedbackPage() {
           <div className="mt-3">
             <button onClick={submitIdea} disabled={!uid || !title.trim() || !detail.trim()} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm disabled:opacity-50">Indienen</button>
           </div>
+          <div className="mt-2 text-xs text-gray-400">Wanneer een idee <span className="text-emerald-300">3 of meer stemmen</span> krijgt, verplaatst het automatisch naar <strong>Mogelijk uitgevoerd</strong>. Daarna kan een admin het oppakken naar <strong>Meebezig</strong> of <strong>Klaar</strong>.</div>
         </section>
 
         {/* Tabs */}
@@ -129,15 +169,27 @@ export default function FeedbackPage() {
             <div className="text-sm text-gray-400">Geen items.</div>
           ) : (
             <div className="space-y-2">
-              {ideas.map(it => (
+              {ideas.map((it) => (
                 <div key={it.id} className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/40 flex items-start justify-between gap-3">
                   <div>
                     <div className="text-white font-medium">{it.title}</div>
                     <div className="text-sm text-gray-300">{it.detail}</div>
-                    <div className="text-[11px] text-gray-400 mt-1">Status: {it.status} • Stimmen: {it.votesCount || 0}</div>
+                    <div className="text-[11px] text-gray-400 mt-1">Status: {it.status} • Stemmen: {it.votesCount || 0} • Door: {profiles[it.createdBy]?.displayName || profiles[it.createdBy]?.email || it.createdBy}</div>
+                    {it.votes && Object.keys(it.votes).length>0 && (
+                      <details className="mt-1">
+                        <summary className="cursor-pointer text-[11px] text-emerald-300">Bekijk stemmers</summary>
+                        <ul className="text-[11px] text-gray-300 list-disc list-inside">
+                          {Object.keys(it.votes).map((vu) => (
+                            <li key={vu}>{profiles[vu]?.displayName || profiles[vu]?.email || vu}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                   </div>
                   {selected==='idea' && (
-                    <button onClick={()=>vote(it)} disabled={!uid} className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs disabled:opacity-50">Stem</button>
+                    <button onClick={()=>vote(it)} disabled={!uid || !!it.votes?.[uid!]} className={`px-3 py-1.5 rounded-md text-xs ${it.votes?.[uid!] ? 'bg-slate-700 text-gray-300' : 'bg-emerald-600 text-white'} disabled:opacity-50`}>
+                      {it.votes?.[uid!] ? 'Gestemd' : 'Stem'}
+                    </button>
                   )}
                 </div>
               ))}

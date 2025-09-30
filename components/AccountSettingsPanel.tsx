@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { getFirebaseAuth, signInWithGoogle, emailLogin, emailRegister, logout, getDb } from "../lib/firebase/client"
 import { updateProfile } from "firebase/auth"
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc, setDoc, serverTimestamp, addDoc, collection } from "firebase/firestore"
 
 export default function AccountSettingsPanel() {
   const [userEmail, setUserEmail] = useState<string>("")
@@ -13,6 +13,7 @@ export default function AccountSettingsPanel() {
   const [message, setMessage] = useState<string>("")
   const [displayName, setDisplayName] = useState<string>("")
   const [searchVisible, setSearchVisible] = useState<boolean>(true)
+  const [inviteLink, setInviteLink] = useState<string>("")
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -118,6 +119,27 @@ export default function AccountSettingsPanel() {
               } catch(e:any) { setMessage(String(e?.message||e)) }
             }} className="accent-emerald-500" />
             <label htmlFor="searchVisible" className="text-sm text-gray-200">Display naam zichtbaar in Zoek chat</label>
+          </div>
+          {/* Invite link generator */}
+          <div className="mt-4 p-3 rounded-lg bg-slate-900/60 border border-slate-800">
+            <div className="text-white font-semibold mb-2">Uitnodigingslink genereren</div>
+            <p className="text-sm text-gray-400 mb-2">Stuur deze link naar iemand; bij openen wordt er automatisch een 1‑op‑1 chat aangemaakt met jouw account (na inloggen).</p>
+            <div className="flex gap-2">
+              <button onClick={async()=>{
+                try {
+                  const auth = getFirebaseAuth(); if (!auth.currentUser) return;
+                  const code = crypto.randomUUID()
+                  await addDoc(collection(getDb(), 'invites'), { code, fromUid: auth.currentUser.uid, createdAt: serverTimestamp(), used: false })
+                  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                  const link = `${origin}/invite?code=${encodeURIComponent(code)}`
+                  setInviteLink(link)
+                } catch(e:any) { setMessage(String(e?.message||e)) }
+              }} className="px-3 py-2 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-sm">Genereer link</button>
+              {inviteLink && (
+                <button onClick={()=>{ try { navigator.clipboard.writeText(inviteLink) } catch {} }} className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-gray-200 text-sm border border-slate-700">Kopieer</button>
+              )}
+            </div>
+            {inviteLink && <div className="mt-2 text-xs break-all text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded p-2">{inviteLink}</div>}
           </div>
           <button onClick={doLogout} disabled={busy} className="mt-3 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sm">Logout</button>
         </div>
