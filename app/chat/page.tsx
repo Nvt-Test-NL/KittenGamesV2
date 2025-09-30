@@ -91,6 +91,7 @@ export default function ChatPage() {
   const [showConsent, setShowConsent] = useState(false)
   const [consentPrivacy, setConsentPrivacy] = useState(false)
   const [consentAI, setConsentAI] = useState(false)
+  const [showTutorial, setShowTutorial] = useState(false)
 
   // Init
   useEffect(() => {
@@ -184,6 +185,15 @@ export default function ChatPage() {
         setConsentPrivacy(okPrivacy)
         setConsentAI(okAI)
         setShowConsent(!(okPrivacy && okAI))
+        if (okPrivacy && okAI) {
+          // Check one-time tutorial marker
+          try {
+            const ts = await getDoc(doc(db, 'users', uid, 'consents', 'chat_tutorial'))
+            const td: any = ts.data() || {}
+            const seen = td?.seen === true
+            if (!seen) setShowTutorial(true)
+          } catch {}
+        }
       } catch {}
     })()
   }, [uid, activeChatId])
@@ -305,7 +315,7 @@ export default function ChatPage() {
 
   const onComposerSubmit = useCallback(async () => {
     const text = composer.trim()
-    if (text.startsWith('@Pjotter-AI')) {
+    if (text.toLowerCase().startsWith('@pjotter-ai')) {
       const handled = await maybeHandleBot(text)
       if (handled) { setComposer(""); return }
     }
@@ -505,9 +515,34 @@ export default function ChatPage() {
               <button onClick={async()=>{
                 try {
                   await setDoc(doc(db, 'users', uid!, 'consents', 'chat_'+activeChatId), { acceptedPrivacy: consentPrivacy, acceptedAI: consentAI, updatedAt: serverTimestamp() }, { merge: true })
-                  if (consentPrivacy && consentAI) setShowConsent(false)
+                  if (consentPrivacy && consentAI) {
+                    setShowConsent(false)
+                    // Show tutorial if never shown
+                    try {
+                      const ts = await getDoc(doc(db, 'users', uid!, 'consents', 'chat_tutorial'))
+                      const td: any = ts.data() || {}
+                      if (td?.seen !== true) setShowTutorial(true)
+                    } catch {}
+                  }
                 } catch(e:any) { setWarn(String(e?.message||e)) }
               }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Akkoord</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Tutorial Modal */}
+      {showTutorial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>setShowTutorial(false)} />
+          <div className="relative w-full max-w-3xl mx-auto rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
+            <div className="text-white font-semibold mb-2">Welkom bij Chat</div>
+            <div className="text-sm text-gray-300 mb-3">Tip: gebruik <span className="text-emerald-300">@Pjotter-AI</span> voor AI, vind gebruikers via “Zoek gebruiker”, of plak een code‑link om snel te starten. In Chat‑instellingen kun je leden toevoegen en AI‑instellingen aanpassen.</div>
+            <video controls className="w-full rounded-lg border border-slate-800 bg-black">
+              <source src="/videos/Chat_tu-AI.mp4" type="video/mp4" />
+            </video>
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={()=>setShowTutorial(false)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Bekijk later</button>
+              <button onClick={async()=>{ try { await setDoc(doc(db, 'users', uid!, 'consents', 'chat_tutorial'), { seen: true, updatedAt: serverTimestamp() }, { merge: true }) } catch {}; setShowTutorial(false) }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Gereed</button>
             </div>
           </div>
         </div>
@@ -623,7 +658,7 @@ export default function ChatPage() {
                     />
                     <button onClick={onComposerSubmit} className="px-4 py-2 rounded-md bg-emerald-600 text-white">Verstuur</button>
                   </div>
-                  <div className="mt-1 text-[11px] text-gray-500">Afbeeldingen &lt;~200KB, lokaal gecached; transport via Firestore. Geen Storage benodigd.</div>
+                  <div className="mt-1 text-[11px] text-gray-500">Afbeeldingen &lt;~200KB, lokaal gecached; transport via Firestore. Geen Storage benodigd. Let op: AI kan fouten maken en wordt niet gecontroleerd. Om AI Chatgeschiedenis te gebruiken, moet je naar chat-info en dan "berichten Pjotter-AI inschakelen" en dan "eerdere gesprekken meesturen" aan en ui zetten.</div>
                 </div>
               </>
             )}
