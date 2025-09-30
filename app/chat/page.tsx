@@ -254,22 +254,7 @@ export default function ChatPage() {
     setUserSearch("")
   }, [uid, userSearch, resolveEmailsToUids])
 
-  const startDMByUid = useCallback(async (otherUid: string) => {
-    if (!uid || !otherUid) return
-    const a = uid < otherUid ? uid : otherUid
-    const b = uid < otherUid ? otherUid : uid
-    const pairKey = `${a}_${b}`
-    try {
-      const qx = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
-      const snaps = await getDocs(qx)
-      if (!snaps.empty) {
-        setActiveChatId(snaps.docs[0].id)
-      } else {
-        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid })
-        setActiveChatId(ref.id)
-      }
-    } finally { setShowSearch(false) }
-  }, [uid])
+  
 
   const createGroup = useCallback(async () => {
     if (!uid) return
@@ -280,6 +265,26 @@ export default function ChatPage() {
     setActiveChatId(ref.id)
     setCreatingGroup(false); setGroupName(""); setGroupMembers("")
   }, [uid, groupName, groupMembers, resolveEmailsToUids])
+
+  const startDMByUid = useCallback(async (otherUid: string) => {
+    if (!uid || !otherUid) return
+    try {
+      const a = uid < otherUid ? uid : otherUid
+      const b = uid < otherUid ? otherUid : uid
+      const pairKey = `${a}_${b}`
+      const qdm = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
+      const dmSnaps = await getDocs(qdm)
+      if (!dmSnaps.empty) {
+        setActiveChatId(dmSnaps.docs[0].id)
+      } else {
+        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid })
+        setActiveChatId(ref.id)
+      }
+      setShowSearch(false)
+    } catch (e:any) {
+      setWarn(String(e?.message||e))
+    }
+  }, [uid, db])
 
   const joinByCode = useCallback(async () => {
     if (!uid) { setWarn('Login vereist.'); return }
