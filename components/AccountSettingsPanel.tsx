@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import { getFirebaseAuth, signInWithGoogle, emailLogin, emailRegister, logout, getDb } from "../lib/firebase/client"
 import { updateProfile } from "firebase/auth"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore"
 
 export default function AccountSettingsPanel() {
   const [userEmail, setUserEmail] = useState<string>("")
@@ -12,10 +12,21 @@ export default function AccountSettingsPanel() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string>("")
   const [displayName, setDisplayName] = useState<string>("")
+  const [searchVisible, setSearchVisible] = useState<boolean>(true)
 
   useEffect(() => {
     const auth = getFirebaseAuth()
-    const unsub = auth.onAuthStateChanged(u => setCurrentUser(u))
+    const unsub = auth.onAuthStateChanged(async (u) => {
+      setCurrentUser(u)
+      if (u) {
+        try {
+          const snap = await getDoc(doc(getDb(), 'users', u.uid, 'profile', 'public'))
+          const data = snap.data() as any
+          if (data && typeof data.searchVisible === 'boolean') setSearchVisible(data.searchVisible)
+          if (data && typeof data.displayName === 'string' && !displayName) setDisplayName(data.displayName)
+        } catch {}
+      }
+    })
     return () => unsub()
   }, [])
 
@@ -32,6 +43,7 @@ export default function AccountSettingsPanel() {
             email,
             emailLower,
             displayName: auth.currentUser.displayName || null,
+            searchVisible: true,
             updatedAt: serverTimestamp(),
           }, { merge: true })
         } catch {}
@@ -56,6 +68,7 @@ export default function AccountSettingsPanel() {
             email,
             emailLower,
             displayName: displayName.trim() || auth.currentUser.displayName || null,
+            searchVisible: true,
             updatedAt: serverTimestamp(),
           }, { merge: true })
         } catch {}

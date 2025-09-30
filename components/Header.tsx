@@ -23,6 +23,7 @@ import {
   Info,
   History,
   User,
+  Users,
 } from "lucide-react"
 
 import SearchBar from "./SearchBar"
@@ -52,15 +53,9 @@ const navbarConfig: NavbarConfigData = navbarData;
 
 // Define your navigation items here
 const navItems: NavItem[] = [
-  { id: "games", label: "Games", href: "/", icon: Gamepad },
-  { id: "movies", label: "Movies", href: "/movies", icon: Film },
   { id: "pjotter-ai", label: "Pjotter-AI", href: "/pjotter-ai", icon: Bot },
   { id: "proxy", label: "Proxy", href: "/proxy", icon: Save },
-  { id: "codingkitten", label: "CodingKitten", href: "/codingkitten", icon: Info },
-  { id: "chat", label: "Chat", href: "/chat", icon: MessageCirclePlus },
-  { id: "live", label: "Live", href: "/live", icon: History },
-  { id: "about", label: "About Us", href: "/about", icon: Info },
-  { id: "updates", label: "Updates", href: "/updates", icon: History },
+  { id: "community", label: "Community", href: "/community", icon: Users },
   { id: "settings", label: "Settings", href: "/settings", icon: Settings },
 ];
 
