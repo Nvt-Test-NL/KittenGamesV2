@@ -2,13 +2,10 @@
 
 import React, { Suspense, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import Header from "../../components/Header"
-import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
-import { addDoc, collection, doc, getDoc, query, serverTimestamp, updateDoc, where, getDocs } from "firebase/firestore"
+import { getDb, getFirebaseAuth } from "../lib/firebase/client"
+import { addDoc, collection, doc, query, serverTimestamp, updateDoc, where, getDocs } from "firebase/firestore"
 
-export const dynamic = 'force-dynamic'
-
-function InviteContent() {
+export default function InviteContent() {
   const router = useRouter()
   const params = useSearchParams()
   const db = getDb()
@@ -74,21 +71,5 @@ function InviteContent() {
         <div className="mt-3 text-xs text-gray-400">Ga naar Settings en log in om door te gaan. Deze pagina refresht automatisch.</div>
       )}
     </>
-  )
-}
-
-export default function InvitePage() {
-  return (
-    <div className="min-h-screen bg-gray-950">
-      <Header currentPage="community" />
-      <main className="container mx-auto px-4 pt-24 pb-10">
-        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-gray-200">
-          <div className="text-white font-semibold mb-1">Uitnodiging</div>
-          <Suspense fallback={<div className="text-sm text-gray-400">Laden…</div>}>
-            <InviteContent />
-          </Suspense>
-        </div>
-      </main>
-    </div>
   )
 }
