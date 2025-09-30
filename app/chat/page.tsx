@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Header from "../../components/Header"
 import UserSearchModal from "../../components/UserSearchModal"
 import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
-import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
+import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, arrayUnion } from "firebase/firestore"
 
 // Firestore data model (MVP)
 // chats/{chatId}: { name?: string, isGroup: boolean, members: string[], createdAt, createdBy }
@@ -80,6 +80,14 @@ export default function ChatPage() {
   const [botStage, setBotStage] = useState<'idle'|'thinking'|'typing'>('idle')
   const [showCodeLink, setShowCodeLink] = useState(false)
   const [codeInput, setCodeInput] = useState("")
+  const [showChatInfo, setShowChatInfo] = useState(false)
+  const [chatNameInput, setChatNameInput] = useState("")
+  const [chatDescInput, setChatDescInput] = useState("")
+  const [addMembersInput, setAddMembersInput] = useState("")
+  const [aiEnabled, setAiEnabled] = useState(true)
+  const [aiIncludeHistory, setAiIncludeHistory] = useState(true)
+  const [e2eeEnabled, setE2eeEnabled] = useState(false)
+  const [profiles, setProfiles] = useState<Record<string, any>>({})
 
   // Init
   useEffect(() => {
@@ -141,6 +149,33 @@ export default function ChatPage() {
     })()
     return () => { cancelled = true; if (unsub) unsub() }
   }, [activeChatId, uid])
+
+  // Load other member profiles for DM naming and header
+  useEffect(() => {
+    if (!uid) return
+    const toFetch: string[] = []
+    chats.forEach(c => {
+      if (!c.isGroup && Array.isArray(c.members)) {
+        const other = c.members.find((m: string)=> m!==uid)
+        if (other && !profiles[other]) toFetch.push(other)
+      }
+    })
+    ;(async()=>{
+      const map: Record<string, any> = {}
+      for (const u of toFetch) {
+        try { const s = await getDoc(doc(db, 'publicProfiles', u)); if (s.exists()) map[u]=s.data() } catch {}
+      }
+      if (Object.keys(map).length) setProfiles(prev=> ({...prev, ...map}))
+    })()
+  }, [chats, uid])
+
+  const derivedChatName = useCallback((c:any): string => {
+    if (!c) return 'Chat'
+    if (c.isGroup) return c.name || 'Groep'
+    const other = Array.isArray(c.members)? c.members.find((m:string)=>m!==uid) : null
+    const prof = other? profiles[other] : null
+    return (prof?.displayName || prof?.emailLower || other || 'Chat')
+  }, [profiles, uid])
 
   // Resolve profile emails -> UIDs using collectionGroup('profile') where email == value
   const resolveEmailsToUids = useCallback(async (inputs: string[]): Promise<string[]> => {
@@ -423,10 +458,10 @@ export default function ChatPage() {
             <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
               {chats
                 .filter(c => chatFilterType==='all' ? true : (chatFilterType==='group' ? c.isGroup : !c.isGroup))
-                .filter(c => (c.name|| (c.isGroup? 'Groep' : 'DM')).toLowerCase().includes(chatFilterText.toLowerCase()))
+                .filter(c => (derivedChatName(c)||'').toLowerCase().includes(chatFilterText.toLowerCase()))
                 .map(c => (
                 <button key={c.id} onClick={()=>setActiveChatId(c.id)} className={`w-full text-left px-3 py-2 rounded-md border ${activeChatId===c.id? 'bg-slate-800 border-emerald-500/30 text-white' : 'bg-slate-900/40 border-slate-700 text-gray-300 hover:bg-slate-800/50'}`}>
-                  <div className="text-sm font-medium">{c.name || (c.isGroup? 'Groep' : 'DM')}</div>
+                  <div className="text-sm font-medium">{derivedChatName(c)}</div>
                   <div className="text-[11px] text-gray-400">{Array.isArray(c.members)? c.members.length : 0} leden</div>
                 </button>
               ))}
@@ -438,6 +473,26 @@ export default function ChatPage() {
               <div className="text-gray-400">Selecteer of maak een chat…</div>
             ) : (
               <>
+                {/* Chat header bar */}
+                <div className="flex items-center justify-between mb-2 px-2">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={()=>{
+                    const c = chats.find(x=>x.id===activeChatId)
+                    setChatNameInput(c?.name||'')
+                    setChatDescInput(c?.description||'')
+                    setAiEnabled(Boolean(c?.aiEnabled ?? true))
+                    setAiIncludeHistory(Boolean(c?.aiIncludeHistory ?? true))
+                    setE2eeEnabled(Boolean(c?.e2eeEnabled ?? false))
+                    setShowChatInfo(true)
+                  }}>
+                    <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-sm text-emerald-300">
+                      {derivedChatName(chats.find(c=>c.id===activeChatId))?.slice(0,1).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-white font-medium leading-5">{derivedChatName(chats.find(c=>c.id===activeChatId))}</div>
+                      <div className="text-xs text-gray-400">Klik voor chat‑info</div>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex-1 overflow-y-auto space-y-3 p-2">
                   {messages.map(m => (
                     <div key={m.id} className={`max-w-[85%] ${m.sender===uid? 'ml-auto' : ''}`}>
@@ -488,6 +543,73 @@ export default function ChatPage() {
         </div>
       </main>
       {showSearch && <UserSearchModal onClose={()=>setShowSearch(false)} onStartDM={startDMByUid} />}
+      {/* Chat Info Modal */}
+      {showChatInfo && activeChatId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>setShowChatInfo(false)} />
+          <div className="relative w-full max-w-2xl mx-auto rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-white font-semibold">Chat‑instellingen</div>
+              <button onClick={()=>setShowChatInfo(false)} className="text-gray-400 hover:text-gray-200 text-sm">Sluiten</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs text-gray-400">Naam groep</label>
+                <input value={chatNameInput} onChange={(e)=>setChatNameInput(e.target.value)} placeholder="Naam" className="w-full glass-input rounded-md px-3 py-2 text-sm" />
+                <label className="text-xs text-gray-400">Beschrijving</label>
+                <textarea value={chatDescInput} onChange={(e)=>setChatDescInput(e.target.value)} placeholder="Beschrijving" className="w-full glass-input rounded-md px-3 py-2 text-sm min-h-[90px]" />
+                <div className="flex items-center gap-2">
+                  <input id="aiEnabled" type="checkbox" className="accent-emerald-500" checked={aiEnabled} onChange={e=>setAiEnabled(e.target.checked)} />
+                  <label htmlFor="aiEnabled" className="text-sm text-gray-200">Berichten Pjotter‑AI inschakelen (@Pjotter-AI)</label>
+                </div>
+                <div className="flex items-center gap-2 ml-6">
+                  <input id="aiHistory" type="checkbox" className="accent-emerald-500" checked={aiIncludeHistory} onChange={e=>setAiIncludeHistory(e.target.checked)} />
+                  <label htmlFor="aiHistory" className="text-sm text-gray-200">Eerdere gesprekken meesturen</label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input id="e2ee" type="checkbox" className="accent-emerald-500" checked={e2eeEnabled} onChange={e=>setE2eeEnabled(e.target.checked)} />
+                  <label htmlFor="e2ee" className="text-sm text-gray-200">Privacy: end‑to‑end versleuteling (experimenteel)</label>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button onClick={()=>setShowChatInfo(false)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Annuleren</button>
+                  <button onClick={async()=>{
+                    try {
+                      await setDoc(doc(db, 'chats', activeChatId), { name: chatNameInput || null, description: chatDescInput || null, aiEnabled, aiIncludeHistory, e2eeEnabled, updatedAt: serverTimestamp() }, { merge: true })
+                      setShowChatInfo(false)
+                    } catch(e:any) { setWarn(String(e?.message||e)) }
+                  }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Opslaan</button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm text-gray-300">Leden</div>
+                <div className="text-xs text-gray-400">Automatisch laden</div>
+                <div className="max-h-48 overflow-auto space-y-1 p-2 rounded-md bg-slate-950/40 border border-slate-800">
+                  {(chats.find(c=>c.id===activeChatId)?.members||[]).map((m:string)=> (
+                    <div key={m} className="text-sm text-gray-200">{profiles[m]?.displayName || profiles[m]?.emailLower || m}</div>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <label className="text-xs text-gray-400">Leden toevoegen (e‑mails of UID's, komma‑gescheiden)</label>
+                  <input value={addMembersInput} onChange={(e)=>setAddMembersInput(e.target.value)} placeholder="bijv. user@example.com, 123UID..." className="w-full glass-input rounded-md px-3 py-2 text-sm" />
+                  <button onClick={async()=>{
+                    try {
+                      const inputs = addMembersInput.split(',').map(s=>s.trim()).filter(Boolean)
+                      const uids = await resolveEmailsToUids(inputs)
+                      if (!uids.length) { setWarn('Geen geldige leden gevonden.'); return }
+                      await setDoc(doc(db, 'chats', activeChatId), { members: arrayUnion(...uids) }, { merge: true })
+                      setAddMembersInput("")
+                    } catch(e:any) { setWarn(String(e?.message||e)) }
+                  }} className="mt-2 px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">+ Toevoegen</button>
+                </div>
+                <div className="mt-3">
+                  <div className="text-sm text-gray-300">Media, links en documenten</div>
+                  <div className="text-xs text-gray-500">(Komt binnenkort)</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showCodeLink && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>setShowCodeLink(false)} />

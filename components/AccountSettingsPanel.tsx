@@ -198,12 +198,17 @@ export default function AccountSettingsPanel() {
           {message && <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded px-3 py-2">{message}</div>}
         </>
       )}
-      <div className="text-xs text-gray-400">Accounts zijn optioneel met uizondering van: CatGames-Chat en CatGames-Proxy. Bij inloggen worden sync‑toggles toegepast voor Favorites / History / Quests.</div>
-      <div className="text-xs text-gray-400">Het aanmaken van een account is volledig gratis en geen verplichte stap.</div>
-      <div className="text-xs text-gray-400">Catgames brengt nooit zo maar kosten aan bij gebruikers. Catgames biedt momenteel geen optie's tot betalen.</div>
-      <div className="text-xs text-gray-400">Let op: Catgames-Accounts zijn tijdelijk uitgeschakeld wegens technische problemen.</div>
-      <div className="text-xs text-gray-400">Vanaf 2025-10-01 wordt het ook verplicht om voor Pjotter-AI een gratis account te hebben.</div>
-      <div className="text-xs text-gray-400">Met vriendelijke groet, team CatGames.</div>
+      <div className="mt-6 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+        <div className="text-white font-medium mb-2">Disclaimer</div>
+        <div className="space-y-1">
+          <div className="text-xs text-gray-300">Accounts zijn optioneel met uizondering van: CatGames-Chat en CatGames-Proxy. Bij inloggen worden sync‑toggles toegepast voor Favorites / History / Quests.</div>
+          <div className="text-xs text-gray-300">Het aanmaken van een account is volledig gratis en geen verplichte stap.</div>
+          <div className="text-xs text-gray-300">Catgames brengt nooit zo maar kosten aan bij gebruikers. Catgames biedt momenteel geen optie's tot betalen.</div>
+          <div className="text-xs text-gray-300">Let op: Catgames-Accounts zijn tijdelijk uitgeschakeld wegens technische problemen.</div>
+          <div className="text-xs text-gray-300">Vanaf 2025-10-01 wordt het ook verplicht om voor Pjotter-AI een gratis account te hebben.</div>
+          <div className="text-xs text-gray-300">Met vriendelijke groet, team CatGames.</div>
+        </div>
+      </div>
 
 
 
