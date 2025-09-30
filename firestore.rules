@@ -74,5 +74,10 @@ service cloud.firestore {
         && request.resource.data.used == true;
       allow delete: if false;
     }
+
+    // PublicProfiles mirror for simpler queries (no collectionGroup)
+    match /publicProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
   }
-}

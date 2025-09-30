@@ -40,7 +40,16 @@ export default function AccountSettingsPanel() {
         try {
           const email = auth.currentUser.email || ""
           const emailLower = email.toLowerCase()
-          await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), {
+          const db = getDb()
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'profile', 'public'), {
+            email,
+            emailLower,
+            displayName: auth.currentUser.displayName || null,
+            searchVisible: true,
+            isPublic: true,
+            updatedAt: serverTimestamp(),
+          }, { merge: true })
+          await setDoc(doc(db, 'publicProfiles', auth.currentUser.uid), {
             email,
             emailLower,
             displayName: auth.currentUser.displayName || null,
@@ -66,7 +75,16 @@ export default function AccountSettingsPanel() {
         try {
           const email = auth.currentUser.email || userEmail
           const emailLower = (email || "").toLowerCase()
-          await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), {
+          const db = getDb()
+          await setDoc(doc(db, 'users', auth.currentUser.uid, 'profile', 'public'), {
+            email,
+            emailLower,
+            displayName: displayName.trim() || auth.currentUser.displayName || null,
+            searchVisible: true,
+            isPublic: true,
+            updatedAt: serverTimestamp(),
+          }, { merge: true })
+          await setDoc(doc(db, 'publicProfiles', auth.currentUser.uid), {
             email,
             emailLower,
             displayName: displayName.trim() || auth.currentUser.displayName || null,
@@ -116,7 +134,9 @@ export default function AccountSettingsPanel() {
               const v = e.target.checked; setSearchVisible(v)
               try {
                 const auth = getFirebaseAuth(); if (!auth.currentUser) return;
-                await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), { searchVisible: v, isPublic: true, updatedAt: serverTimestamp() }, { merge: true })
+                const db = getDb()
+                await setDoc(doc(db, 'users', auth.currentUser.uid, 'profile', 'public'), { searchVisible: v, isPublic: true, updatedAt: serverTimestamp() }, { merge: true })
+                await setDoc(doc(db, 'publicProfiles', auth.currentUser.uid), { searchVisible: v, isPublic: true, updatedAt: serverTimestamp() }, { merge: true })
                 setMessage(v? 'Je bent vindbaar in Zoek chat.' : 'Je bent verborgen in de gebruikerslijst.')
               } catch(e:any) { setMessage(String(e?.message||e)) }
             }} className="accent-emerald-500" />
