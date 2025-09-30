@@ -162,6 +162,15 @@ export default function AccountSettingsPanel() {
               )}
             </div>
             {inviteLink && <div className="mt-2 text-xs break-all text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded p-2">{inviteLink}</div>}
+            {/* Code + group hint */}
+            <div className="mt-4 p-3 rounded-lg bg-slate-950/50 border border-slate-800">
+              <div className="text-sm text-gray-300">Jouw code</div>
+              <div className="mt-1 flex items-center gap-2">
+                <div className="px-2 py-1 rounded bg-slate-800/70 border border-slate-700 text-emerald-300 text-xs break-all">{currentUser?.uid}</div>
+                <button onClick={()=>{ try { navigator.clipboard.writeText(currentUser?.uid || '') } catch {} }} className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-gray-200 text-xs">Kopieer</button>
+              </div>
+              <div className="mt-2 text-[11px] text-gray-400">Gebruik voor het aanmaken van een groep de volgende chat-naam: <span className="text-emerald-300">{currentUser?.uid}</span></div>
+            </div>
           </div>
           <button onClick={doLogout} disabled={busy} className="mt-3 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sm">Logout</button>
         </div>

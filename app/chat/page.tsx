@@ -107,17 +107,40 @@ export default function ChatPage() {
       try { setMessages(JSON.parse(cacheRaw)) } catch {}
     } else { setMessages([]) }
 
-    const q = query(collection(db, 'chats', activeChatId, 'messages'), orderBy('createdAt', 'asc'))
-    const off = onSnapshot(q, (snap) => {
-      const arr: any[] = []
-      snap.forEach(d => arr.push({ id: d.id, ...d.data() }))
-      setMessages(arr)
-      try { localStorage.setItem(chatCacheKey(activeChatId), JSON.stringify(arr)) } catch {}
-    }, (err) => {
-      console.error('[Chat] onSnapshot(messages) error for chat:', activeChatId, err)
-    })
-    return () => off()
-  }, [activeChatId])
+    let unsub: (()=>void) | null = null
+    let cancelled = false
+    ;(async()=>{
+      try {
+        const chatRef = doc(db, 'chats', activeChatId)
+        // wait until chat exists (in case we just created it)
+        for (let i=0;i<3;i++) {
+          const s = await getDoc(chatRef)
+          if (s.exists()) break
+          await new Promise(r=>setTimeout(r, 150))
+        }
+        const s2 = await getDoc(chatRef)
+        if (!s2.exists()) { console.warn('[Chat] chat does not exist yet, skipping listener', activeChatId); return }
+        const data: any = s2.data()
+        if (!uid || !Array.isArray(data?.members) || !data.members.includes(uid)) {
+          console.warn('[Chat] user not a member of chat, skipping listener', activeChatId)
+          return
+        }
+        if (cancelled) return
+        const q = query(collection(db, 'chats', activeChatId, 'messages'), orderBy('createdAt', 'asc'))
+        unsub = onSnapshot(q, (snap) => {
+          const arr: any[] = []
+          snap.forEach(d => arr.push({ id: d.id, ...d.data() }))
+          setMessages(arr)
+          try { localStorage.setItem(chatCacheKey(activeChatId), JSON.stringify(arr)) } catch {}
+        }, (err) => {
+          console.error('[Chat] onSnapshot(messages) error for chat:', activeChatId, err)
+        })
+      } catch (e) {
+        console.error('[Chat] precheck/listener setup failed', e)
+      }
+    })()
+    return () => { cancelled = true; if (unsub) unsub() }
+  }, [activeChatId, uid])
 
   // Resolve profile emails -> UIDs using collectionGroup('profile') where email == value
   const resolveEmailsToUids = useCallback(async (inputs: string[]): Promise<string[]> => {
@@ -272,16 +295,12 @@ export default function ChatPage() {
       const a = uid < otherUid ? uid : otherUid
       const b = uid < otherUid ? otherUid : uid
       const pairKey = `${a}_${b}`
-      const qdm = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
-      const dmSnaps = await getDocs(qdm)
-      if (!dmSnaps.empty) {
-        setActiveChatId(dmSnaps.docs[0].id)
-      } else {
-        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid })
-        setActiveChatId(ref.id)
-      }
+      const chatId = `dm_${pairKey}`
+      await setDoc(doc(db, 'chats', chatId), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid }, { merge: true })
+      setActiveChatId(chatId)
       setShowSearch(false)
     } catch (e:any) {
+      console.error('[Chat] startDMByUid error:', e)
       setWarn(String(e?.message||e))
     }
   }, [uid, db])
@@ -309,28 +328,36 @@ export default function ChatPage() {
     if (!code) { setWarn('Kon geen code vinden in de invoer.'); return }
 
     try {
+      // If code looks like a UID, allow direct DM when profile exists
+      if (code.length >= 20 && code !== uid) {
+        try {
+          const prof = await getDoc(doc(db, 'publicProfiles', code))
+          if (prof.exists()) {
+            await startDMByUid(code)
+            setShowCodeLink(false)
+            setCodeInput("")
+            return
+          }
+        } catch {}
+      }
+
       // find invite by code
       const qx = query(collection(db, 'invites'), where('code','==', code))
       const snaps = await getDocs(qx)
-      if (snaps.empty) { setWarn('Uitnodiging niet gevonden of al gebruikt.'); return }
+      if (snaps.empty) { setWarn('Code ongeldig: geen profiel of uitnodiging gevonden.'); return }
       const inviteDoc = snaps.docs[0]
       const inv = inviteDoc.data() as any
       if (inv.used) { setWarn('Uitnodiging is al gebruikt.'); return }
       const other = inv.fromUid as string
       if (!other || other === uid) { setWarn('Ongeldige uitnodiging.'); return }
 
-      // create/find DM
+      // create/find DM without pre-read (deterministic id)
       const a = uid < other ? uid : other
       const b = uid < other ? other : uid
       const pairKey = `${a}_${b}`
-      const qdm = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
-      const dmSnaps = await getDocs(qdm)
-      if (!dmSnaps.empty) {
-        setActiveChatId(dmSnaps.docs[0].id)
-      } else {
-        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid })
-        setActiveChatId(ref.id)
-      }
+      const chatId = `dm_${pairKey}`
+      await setDoc(doc(db, 'chats', chatId), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid }, { merge: true })
+      setActiveChatId(chatId)
 
       // try to mark used (requires auth, we have it here)
       try {

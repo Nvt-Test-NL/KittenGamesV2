@@ -9,6 +9,7 @@ interface Props { onClose: ()=>void, onStartDM?: (uid: string)=>void }
 type PublicProfile = {
   uid?: string
   emailLower?: string
+  email?: string | null
   displayName?: string | null
   searchVisible?: boolean
 }
@@ -118,7 +119,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
                   {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
                 </div>
                 {onStartDM && u.uid && (
-                  <button onClick={()=>onStartDM(u.uid!)} className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs">Maak chat</button>
+                  <button onClick={()=>{ try { onStartDM(u.uid!) } catch(e){ console.debug('[UserSearch] startDM error', e) } }} className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs">Maak chat</button>
                 )}
               </div>
             ))
