@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from "react"
 import GameGrid from "../components/GameGrid"
 import Header from "../components/Header"
 import BackToTop from "../components/BackToTop"
+import HourlyChangelogPopup from "../components/HourlyChangelogPopup"
 import OneTimePopup from '../components/OneTimePopup';
 import { launchGame } from "../components/GameLaunchSettingsPanel"
 import GameCard from "../components/GameGrid/GameCard"
@@ -175,6 +176,7 @@ export default function Home() {
 
   return (
     <>
+      <HourlyChangelogPopup />
       <Header 
         currentPage="games"
         onCategoryChange={handleCategoryChange}
