@@ -10,7 +10,7 @@ import UserSearchModal from "../../components/UserSearchModal"
 const channels = [
   { id: 'general', label: 'Algemeen' },
   { id: 'hulp', label: 'Hulp' },
-  { id: 'memes', label: 'Memes' },
+  { id: 'games', label: 'Games & Movies' },
 ]
 
 export default function CommunityPage() {

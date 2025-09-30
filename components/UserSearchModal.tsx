@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
-import { getDb } from "../lib/firebase/client"
+import { getDb, getFirebaseAuth } from "../lib/firebase/client"
 import { collectionGroup, getDocs, limit, query, where, orderBy } from "firebase/firestore"
 
 interface Props { onClose: ()=>void, onStartDM?: (uid: string)=>void }
@@ -16,6 +16,7 @@ type PublicProfile = {
 
 export default function UserSearchModal({ onClose, onStartDM }: Props) {
   const db = getDb()
+  const [uid, setUid] = useState<string | null>(null)
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>("")
@@ -24,6 +25,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
   const loadDefault = async () => {
     setLoading(true); setError("")
     try {
+      if (!uid) { setItems([]); return }
       // List visible users (no efficient ORDER BY without index; keep simple and small)
       const qv = query(collectionGroup(db, 'profile'), where('searchVisible', '==', true), limit(30))
       const snap = await getDocs(qv)
@@ -46,6 +48,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
     if (!term) { loadDefault(); return }
     setLoading(true); setError("")
     try {
+      if (!uid) { setItems([]); return }
       const emailLower = term.includes('@')? term.toLowerCase() : undefined
       if (emailLower) {
         const q1 = query(collectionGroup(db, 'profile'), where('emailLower','==', emailLower))
@@ -78,7 +81,13 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { loadDefault() }, [])
+  useEffect(() => {
+    const auth = getFirebaseAuth()
+    const off = auth.onAuthStateChanged(u => setUid(u?.uid || null))
+    return () => off()
+  }, [])
+
+  useEffect(() => { loadDefault() }, [uid])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -92,6 +101,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
           <input value={search} onChange={(e)=>setSearch(e.target.value)} onKeyDown={(e)=>{ if (e.key==='Enter') doExactSearch() }} placeholder="Zoek op naam of exact e‑mail" className="flex-1 glass-input rounded-md px-3 py-2 text-sm" />
           <button onClick={doExactSearch} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Zoek</button>
         </div>
+        {!uid && <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded p-2 mb-2">Inloggen vereist om gebruikers te zoeken.</div>}
         {loading && <div className="text-xs text-gray-400">Laden…</div>}
         {error && <div className="text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded p-2 mb-2">{error}</div>}
         <div className="max-h-96 overflow-auto space-y-2">

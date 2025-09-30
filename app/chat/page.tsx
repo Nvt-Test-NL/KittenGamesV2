@@ -75,6 +75,8 @@ export default function ChatPage() {
   const [groupMembers, setGroupMembers] = useState<string>("") // comma-separated emails
   const [warn, setWarn] = useState<string>("")
   const [showSearch, setShowSearch] = useState(false)
+  const [chatFilterText, setChatFilterText] = useState("")
+  const [chatFilterType, setChatFilterType] = useState<'all'|'dm'|'group'>('all')
 
   // Init
   useEffect(() => {
@@ -280,18 +282,32 @@ export default function ChatPage() {
               </div>
             </div>
             <div className="mb-3">
-              <button onClick={()=>setCreatingGroup(v=>!v)} className="text-sm text-emerald-300">{creatingGroup? 'Annuleer' : '+ Nieuwe groep'}</button>
+              <button onClick={()=>setCreatingGroup(v=>!v)} className={`px-3 py-2 rounded-md border text-sm ${creatingGroup? 'bg-slate-800 border-slate-700 text-gray-200' : 'bg-emerald-600/20 border-emerald-500/40 text-emerald-200 hover:bg-emerald-600/25'}`}>{creatingGroup? 'Annuleer' : '+ Nieuwe groep'}</button>
               {creatingGroup && (
                 <div className="mt-2 space-y-2">
                   <input value={groupName} onChange={(e)=>setGroupName(e.target.value)} placeholder="Groepsnaam" className="w-full glass-input rounded-md px-3 py-2 text-sm" />
                   <input value={groupMembers} onChange={(e)=>setGroupMembers(e.target.value)} placeholder="Leden emails, komma-gescheiden" className="w-full glass-input rounded-md px-3 py-2 text-sm" />
-                  <button onClick={createGroup} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-100 text-sm">Aanmaken</button>
+                  <button onClick={createGroup} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Aanmaken</button>
                 </div>
               )}
             </div>
+            <div className="mb-2">
+              <div className="text-xs text-gray-400 mb-1">Filter</div>
+              <div className="flex gap-2">
+                <input value={chatFilterText} onChange={(e)=>setChatFilterText(e.target.value)} placeholder="Zoek chats/groepen" className="flex-1 glass-input rounded-md px-3 py-2 text-sm" />
+                <select value={chatFilterType} onChange={(e)=>setChatFilterType(e.target.value as any)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-gray-200">
+                  <option value="all">Alle</option>
+                  <option value="dm">Chats</option>
+                  <option value="group">Groepen</option>
+                </select>
+              </div>
+            </div>
             <div className="text-xs text-gray-400 mb-1">Jouw chats</div>
             <div className="space-y-1 max-h-[50vh] overflow-y-auto pr-1">
-              {chats.map(c => (
+              {chats
+                .filter(c => chatFilterType==='all' ? true : (chatFilterType==='group' ? c.isGroup : !c.isGroup))
+                .filter(c => (c.name|| (c.isGroup? 'Groep' : 'DM')).toLowerCase().includes(chatFilterText.toLowerCase()))
+                .map(c => (
                 <button key={c.id} onClick={()=>setActiveChatId(c.id)} className={`w-full text-left px-3 py-2 rounded-md border ${activeChatId===c.id? 'bg-slate-800 border-emerald-500/30 text-white' : 'bg-slate-900/40 border-slate-700 text-gray-300 hover:bg-slate-800/50'}`}>
                   <div className="text-sm font-medium">{c.name || (c.isGroup? 'Groep' : 'DM')}</div>
                   <div className="text-[11px] text-gray-400">{Array.isArray(c.members)? c.members.length : 0} leden</div>
