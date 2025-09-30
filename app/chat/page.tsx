@@ -88,6 +88,9 @@ export default function ChatPage() {
   const [aiIncludeHistory, setAiIncludeHistory] = useState(true)
   const [e2eeEnabled, setE2eeEnabled] = useState(false)
   const [profiles, setProfiles] = useState<Record<string, any>>({})
+  const [showConsent, setShowConsent] = useState(false)
+  const [consentPrivacy, setConsentPrivacy] = useState(false)
+  const [consentAI, setConsentAI] = useState(false)
 
   // Init
   useEffect(() => {
@@ -169,6 +172,22 @@ export default function ChatPage() {
     })()
   }, [chats, uid])
 
+  // Load per-chat consent for first-time entry
+  useEffect(() => {
+    if (!uid || !activeChatId) return
+    ;(async()=>{
+      try {
+        const s = await getDoc(doc(db, 'users', uid, 'consents', 'chat_'+activeChatId))
+        const d: any = s.data() || {}
+        const okPrivacy = d?.acceptedPrivacy === true
+        const okAI = d?.acceptedAI === true
+        setConsentPrivacy(okPrivacy)
+        setConsentAI(okAI)
+        setShowConsent(!(okPrivacy && okAI))
+      } catch {}
+    })()
+  }, [uid, activeChatId])
+
   const derivedChatName = useCallback((c:any): string => {
     if (!c) return 'Chat'
     if (c.isGroup) return c.name || 'Groep'
@@ -239,7 +258,7 @@ export default function ChatPage() {
 
   // @Pjotter-AI command
   const maybeHandleBot = useCallback(async (text: string) => {
-    if (!text.startsWith('@Pjotter-AI')) return false
+    if (!text.toLowerCase().startsWith('@pjotter-ai')) return false
     const question = text.replace('@Pjotter-AI', '').trim()
     if (!question) return true
     if (!activeChatId) return true
@@ -251,6 +270,7 @@ export default function ChatPage() {
       const enabled = cfg.aiEnabled !== false // default on
       const includeHistory = cfg.aiIncludeHistory === true // default off unless set true
       if (!enabled) { setWarn('Pjotter‑AI is uitgeschakeld voor deze chat.'); return true }
+      if (!consentAI) { setShowConsent(true); setWarn('Je moet akkoord gaan met AI‑gebruik om Pjotter‑AI te gebruiken.'); return true }
 
       // Add user message first
       setComposer(question)
@@ -281,7 +301,7 @@ export default function ChatPage() {
       setBotStage('idle')
     }
     return true
-  }, [activeChatId, messages, uid, sendMessage])
+  }, [activeChatId, messages, uid, sendMessage, consentAI])
 
   const onComposerSubmit = useCallback(async () => {
     const text = composer.trim()
@@ -448,7 +468,7 @@ export default function ChatPage() {
               <div className="mt-1 text-xs text-gray-400">Omdat bij deze functies er data extern wordt opgeslagen is een account verplicht, wij hopen dat dit niet de plezier van het game en films kijken af haalt.</div>
             </div>
             <div className="mt-5">
-              <a href="/account" className="inline-block px-4 py-2 rounded-md bg-emerald-600 text-white text-sm">Inloggen / Account aanmaken</a>
+              <a href="/settings?tab=account" className="inline-block px-4 py-2 rounded-md bg-emerald-600 text-white text-sm">Inloggen / Account aanmaken</a>
             </div>
           </div>
         </main>
@@ -463,6 +483,35 @@ export default function ChatPage() {
         {warn && (
           <div className="mb-3 text-xs text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded p-2">{warn}</div>
         )}
+      {/* Consent Modal */}
+      {showConsent && activeChatId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
+          <div className="relative w-full max-w-lg mx-auto rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
+            <div className="text-white font-semibold mb-2">Toestemming vereist</div>
+            <div className="text-sm text-gray-300 mb-3">Om deze chat te gebruiken vragen we je akkoord te gaan met onze privacy‑richtlijnen en, indien je Pjotter‑AI wilt gebruiken, met AI‑gebruik in deze chat.</div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-gray-200">
+                <input type="checkbox" className="accent-emerald-500" checked={consentPrivacy} onChange={(e)=>setConsentPrivacy(e.target.checked)} />
+                Ik ga akkoord met de privacy‑richtlijnen.
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-200">
+                <input type="checkbox" className="accent-emerald-500" checked={consentAI} onChange={(e)=>setConsentAI(e.target.checked)} />
+                Ik ga akkoord met AI‑gebruik in deze chat (Pjotter‑AI).
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={()=>setShowConsent(false)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Sluiten</button>
+              <button onClick={async()=>{
+                try {
+                  await setDoc(doc(db, 'users', uid!, 'consents', 'chat_'+activeChatId), { acceptedPrivacy: consentPrivacy, acceptedAI: consentAI, updatedAt: serverTimestamp() }, { merge: true })
+                  if (consentPrivacy && consentAI) setShowConsent(false)
+                } catch(e:any) { setWarn(String(e?.message||e)) }
+              }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Akkoord</button>
+            </div>
+          </div>
+        </div>
+      )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <aside className="md:col-span-1 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <div className="mb-3">
@@ -614,6 +663,8 @@ export default function ChatPage() {
                   <button onClick={async()=>{
                     try {
                       await setDoc(doc(db, 'chats', activeChatId), { name: chatNameInput || null, description: chatDescInput || null, aiEnabled, aiIncludeHistory, e2eeEnabled, updatedAt: serverTimestamp() }, { merge: true })
+                      // Optimistic local update for chat name/desc
+                      setChats(prev => prev.map(c => c.id===activeChatId? { ...c, name: chatNameInput||null, description: chatDescInput||null, aiEnabled, aiIncludeHistory, e2eeEnabled } : c))
                       setShowChatInfo(false)
                     } catch(e:any) { setWarn(String(e?.message||e)) }
                   }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Opslaan</button>
