@@ -47,29 +47,16 @@ export default function FeedbackPage() {
   useEffect(() => auth.onAuthStateChanged(u => setUid(u?.uid || null)), [auth])
 
   useEffect(() => {
-    // Subscribe both top-level and legacy path, merge client-side
+    // Subscribe top-level feedbackIdeas only
     const q1 = query(collection(db, 'feedbackIdeas'))
     const off1 = onSnapshot(q1, snap => {
       const arr: Idea[] = []
       snap.forEach(d => arr.push({ id: d.id, ...(d.data() as any) }))
-      setIdeas(prev => {
-        // merge with any legacy already set; we'll let the legacy subscription also update
-        const merged = [...arr]
-        return merged.filter(x => x.status === selected).sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
-      })
+      const filtered = arr.filter(x => x.status === selected)
+      filtered.sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
+      setIdeas(filtered)
     })
-    const q2 = query(collection(db, 'feedback', 'ideas'))
-    const off2 = onSnapshot(q2, snap => {
-      const legacy: Idea[] = []
-      snap.forEach(d => legacy.push({ id: d.id, ...(d.data() as any) }))
-      setIdeas(prev => {
-        const map = new Map<string, Idea>()
-        ;[...prev, ...legacy].forEach(it => { map.set(it.id, it) })
-        const merged = Array.from(map.values())
-        return merged.filter(x => x.status === selected).sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
-      })
-    })
-    return () => { off1(); off2() }
+    return () => { off1() }
   }, [db, selected])
 
   // Load display names/emails for creators and voters
