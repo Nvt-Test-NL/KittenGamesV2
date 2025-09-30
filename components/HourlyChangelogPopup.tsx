@@ -22,7 +22,7 @@ export default function HourlyChangelogPopup() {
 
   useEffect(() => {
     // Load considering items (optional)
-    const qy = query(collection(db,'feedback','ideas'), where('status','==','considering'), orderBy('createdAt','desc'), limit(5))
+    const qy = query(collection(db,'feedbackIdeas'), where('status','==','considering'), orderBy('createdAt','desc'), limit(5))
     const off = onSnapshot(qy, snap => {
       const arr: Array<{id:string,title:string,detail:string}> = []
       snap.forEach(d=>{ const x = d.data() as any; arr.push({ id: d.id, title: x.title||'', detail: x.detail||'' }) })

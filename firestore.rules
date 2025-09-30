@@ -40,8 +40,8 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Feedback: ideas board
-    match /feedback/ideas/{id} {
+    // Feedback: ideas board (top-level collection)
+    match /feedbackIdeas/{id} {
       allow read: if true;
       allow create: if request.auth != null
         && request.resource.data.title is string
@@ -52,8 +52,8 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // Feedback: admin applications (write-only for users)
-    match /feedback/applications/{id} {
+    // Feedback: admin applications (top-level; write-only for users)
+    match /feedbackApplications/{id} {
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.name is string

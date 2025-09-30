@@ -46,7 +46,7 @@ export default function FeedbackPage() {
   useEffect(() => auth.onAuthStateChanged(u => setUid(u?.uid || null)), [auth])
 
   useEffect(() => {
-    const q = query(collection(db, 'feedback', 'ideas'), where('status','==', selected), orderBy('createdAt','desc'))
+    const q = query(collection(db, 'feedbackIdeas'), where('status','==', selected), orderBy('createdAt','desc'))
     const off = onSnapshot(q, snap => {
       const arr: Idea[] = []
       snap.forEach(d => arr.push({ id: d.id, ...(d.data() as any) }))
@@ -58,7 +58,7 @@ export default function FeedbackPage() {
   const submitIdea = async () => {
     if (!uid) { setMsg('Login vereist.'); return }
     const t = title.trim(); const d = detail.trim(); if (!t || !d) return
-    await addDoc(collection(db, 'feedback', 'ideas'), {
+    await addDoc(collection(db, 'feedbackIdeas'), {
       title: t, detail: d, status: 'idea', createdBy: uid, createdAt: serverTimestamp(), votesCount: 0, votes: {}
     })
     setTitle(""); setDetail("")
@@ -66,7 +66,7 @@ export default function FeedbackPage() {
 
   const vote = async (item: Idea) => {
     if (!uid) { setMsg('Login vereist.'); return }
-    const ref = doc(db, 'feedback', 'ideas', item.id)
+    const ref = doc(db, 'feedbackIdeas', item.id)
     const snap = await getDoc(ref)
     const cur = snap.data() as any
     const votes = cur?.votes || {}
@@ -82,7 +82,7 @@ export default function FeedbackPage() {
     if (!uid) { setMsg('Login vereist.'); return }
     const n = applyName.trim(), e = applyEmail.trim(), m = applyMotivation.trim()
     if (!n || !e || !m) return
-    await addDoc(collection(db, 'feedback', 'applications'), { uid, name: n, email: e, motivation: m, createdAt: serverTimestamp() })
+    await addDoc(collection(db, 'feedbackApplications'), { uid, name: n, email: e, motivation: m, createdAt: serverTimestamp() })
     setShowApply(false); setApplyName(""); setApplyEmail(""); setApplyMotivation("")
     setMsg('Aanvraag verstuurd.')
   }

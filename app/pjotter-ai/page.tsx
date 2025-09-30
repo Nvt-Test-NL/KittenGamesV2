@@ -43,6 +43,8 @@ export default function PjotterAIPage() {
   const [input, setInput] = useState("");
   const [imageUrl, setImageUrl] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  const [aiStage, setAiStage] = useState<'idle'|'thinking'|'typing'>('idle');
+  const [linkConfirm, setLinkConfirm] = useState<string|undefined>(undefined);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Load sessions from localStorage (with migration from single STORAGE_KEY)
@@ -196,6 +198,8 @@ export default function PjotterAIPage() {
     if (!canSend || isLoading) return;
     if (!consented) return;
     setIsLoading(true);
+    setAiStage('thinking');
+    const typingTimer = setTimeout(()=> setAiStage('typing'), 3000);
 
     // Compose user content (text + optional image). For OpenRouter, use:
     // - string content when only text is present
@@ -367,7 +371,7 @@ export default function PjotterAIPage() {
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0ms' }} />
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '120ms' }} />
                   <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '240ms' }} />
-                  <span className="ml-2 text-sm text-gray-300">Pjotter-AI is typing…</span>
+                  <span className="ml-2 text-sm text-gray-300">{aiStage==='thinking' ? 'Pjotter-AI is aan het denken…' : 'Pjotter-AI is aan het typen…'}</span>
                 </div>
               )}
             </div>
@@ -484,6 +488,23 @@ export default function PjotterAIPage() {
             <div className="mt-3 flex items-center justify-between">
               <span className="text-xs text-gray-500">Je moet de video volledig uitkijken. Bron vermelding (image + text): Github - kittendev. (Let op: Repository onbekend) </span>
               <button onClick={()=>setShowUnlockModal(false)} className="px-3 py-1.5 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700">Sluiten</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Link Confirm Modal */}
+      {linkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={()=>setLinkConfirm(undefined)} />
+          <div className="relative z-10 w-[90%] max-w-lg rounded-2xl border border-slate-700 bg-slate-900/90 p-6 shadow-2xl">
+            <h2 className="text-xl font-semibold text-white mb-2">Let op</h2>
+            <p className="text-gray-300 text-sm mb-3">Je wordt door Pjotter‑AI geredirect naar deze link:</p>
+            <div className="text-xs break-all text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded p-2 mb-4">{linkConfirm}</div>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={()=>setLinkConfirm(undefined)} className="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700 text-sm">Sluiten</button>
+              <button onClick={()=>{ if(linkConfirm){ try { window.location.assign(linkConfirm) } catch {}; setLinkConfirm(undefined)} }} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm">Open hier</button>
+              <button onClick={()=>{ if(linkConfirm){ try { window.open(linkConfirm, '_blank', 'noopener') } catch {}; setLinkConfirm(undefined)} }} className="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700 text-sm">Nieuw tabblad</button>
             </div>
           </div>
         </div>
