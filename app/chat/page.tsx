@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Header from "../../components/Header"
+import UserSearchModal from "../../components/UserSearchModal"
 import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
 import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore"
 
@@ -73,6 +74,7 @@ export default function ChatPage() {
   const [groupName, setGroupName] = useState("")
   const [groupMembers, setGroupMembers] = useState<string>("") // comma-separated emails
   const [warn, setWarn] = useState<string>("")
+  const [showSearch, setShowSearch] = useState(false)
 
   // Init
   useEffect(() => {
@@ -199,11 +201,47 @@ export default function ChatPage() {
     const otherEmail = userSearch.trim().toLowerCase()
     const uids = await resolveEmailsToUids([otherEmail])
     if (!uids.length) { setWarn('Gebruiker niet gevonden.'); return }
-    const members = Array.from(new Set([uid, ...uids]))
-    const ref = await addDoc(collection(db, 'chats'), { isGroup: false, members, createdAt: serverTimestamp(), createdBy: uid })
-    setActiveChatId(ref.id)
+    const otherUid = uids[0]
+    // Find or create based on pairKey
+    const a = uid < otherUid ? uid : otherUid
+    const b = uid < otherUid ? otherUid : uid
+    const pairKey = `${a}_${b}`
+    // Look up existing
+    try {
+      const qx = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
+      const snaps = await getDocs(qx)
+      if (!snaps.empty) {
+        const id = snaps.docs[0].id
+        setActiveChatId(id)
+      } else {
+        const members = [uid, otherUid]
+        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members, createdAt: serverTimestamp(), createdBy: uid })
+        setActiveChatId(ref.id)
+      }
+    } catch {
+      const members = Array.from(new Set([uid, otherUid]))
+      const ref = await addDoc(collection(db, 'chats'), { isGroup: false, members, createdAt: serverTimestamp(), createdBy: uid })
+      setActiveChatId(ref.id)
+    }
     setUserSearch("")
   }, [uid, userSearch, resolveEmailsToUids])
+
+  const startDMByUid = useCallback(async (otherUid: string) => {
+    if (!uid || !otherUid) return
+    const a = uid < otherUid ? uid : otherUid
+    const b = uid < otherUid ? otherUid : uid
+    const pairKey = `${a}_${b}`
+    try {
+      const qx = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
+      const snaps = await getDocs(qx)
+      if (!snaps.empty) {
+        setActiveChatId(snaps.docs[0].id)
+      } else {
+        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid })
+        setActiveChatId(ref.id)
+      }
+    } finally { setShowSearch(false) }
+  }, [uid])
 
   const createGroup = useCallback(async () => {
     if (!uid) return
@@ -236,10 +274,9 @@ export default function ChatPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <aside className="md:col-span-1 p-3 rounded-xl bg-slate-900/60 border border-slate-800">
             <div className="mb-3">
-              <div className="text-xs text-gray-400 mb-1">Zoek gebruiker (email) of maak DM</div>
+              <div className="text-xs text-gray-400 mb-1">Snel acties</div>
               <div className="flex gap-2">
-                <input value={userSearch} onChange={(e)=>setUserSearch(e.target.value)} placeholder="email@voorbeeld.nl" className="flex-1 glass-input rounded-md px-3 py-2 text-sm" />
-                <button onClick={createDM} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">DM</button>
+                <button onClick={()=>setShowSearch(true)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-100 text-sm">Zoek gebruiker</button>
               </div>
             </div>
             <div className="mb-3">
@@ -307,6 +344,7 @@ export default function ChatPage() {
           </section>
         </div>
       </main>
+      {showSearch && <UserSearchModal onClose={()=>setShowSearch(false)} onStartDM={startDMByUid} />}
     </>
   )
 }

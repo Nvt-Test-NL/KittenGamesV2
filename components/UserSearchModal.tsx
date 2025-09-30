@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { getDb } from "../lib/firebase/client"
 import { collectionGroup, getDocs, limit, query, where, orderBy } from "firebase/firestore"
 
-interface Props { onClose: ()=>void }
+interface Props { onClose: ()=>void, onStartDM?: (uid: string)=>void }
 
 type PublicProfile = {
   uid?: string
@@ -14,7 +14,7 @@ type PublicProfile = {
   searchVisible?: boolean
 }
 
-export default function UserSearchModal({ onClose }: Props) {
+export default function UserSearchModal({ onClose, onStartDM }: Props) {
   const db = getDb()
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(false)
@@ -99,10 +99,14 @@ export default function UserSearchModal({ onClose }: Props) {
             <div className="text-sm text-gray-400">Geen resultaten.</div>
           ) : (
             items.map((u, idx) => (
-              <div key={(u.uid||'')+idx} className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/40">
-                <div className="text-sm text-white">{u.displayName || (u.email || u.uid || 'Onbekend')}</div>
-                {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
-                {/* Hier kun je later een knop toevoegen om DM te starten */}
+              <div key={(u.uid||'')+idx} className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/40 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm text-white">{u.displayName || (u.email || u.uid || 'Onbekend')}</div>
+                  {u.email && <div className="text-xs text-gray-400">{u.email}</div>}
+                </div>
+                {onStartDM && u.uid && (
+                  <button onClick={()=>onStartDM(u.uid!)} className="px-3 py-1.5 rounded-md bg-emerald-600 text-white text-xs">Start DM</button>
+                )}
               </div>
             ))
           )}
