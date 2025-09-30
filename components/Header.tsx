@@ -53,6 +53,8 @@ const navbarConfig: NavbarConfigData = navbarData;
 
 // Define your navigation items here
 const navItems: NavItem[] = [
+  { id: "games", label: "Games", href: "/", icon: Gamepad2 },
+  { id: "movies", label: "Movies", href: "/movies", icon: Film },
   { id: "pjotter-ai", label: "Pjotter-AI", href: "/pjotter-ai", icon: Bot },
   { id: "proxy", label: "Proxy", href: "/proxy", icon: Save },
   { id: "community", label: "Community", href: "/community", icon: Users },

@@ -108,6 +108,17 @@ export default function AccountSettingsPanel() {
               className="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-sm"
             >Opslaan</button>
           </div>
+          <div className="mt-3 flex items-center gap-2">
+            <input id="searchVisible" type="checkbox" checked={searchVisible} onChange={async(e)=>{
+              const v = e.target.checked; setSearchVisible(v)
+              try {
+                const auth = getFirebaseAuth(); if (!auth.currentUser) return;
+                await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), { searchVisible: v, updatedAt: serverTimestamp() }, { merge: true })
+                setMessage(v? 'Je bent vindbaar in Zoek chat.' : 'Je bent verborgen in de gebruikerslijst.')
+              } catch(e:any) { setMessage(String(e?.message||e)) }
+            }} className="accent-emerald-500" />
+            <label htmlFor="searchVisible" className="text-sm text-gray-200">Display naam zichtbaar in Zoek chat</label>
+          </div>
           <button onClick={doLogout} disabled={busy} className="mt-3 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-sm">Logout</button>
         </div>
       ) : (
