@@ -242,26 +242,46 @@ export default function ChatPage() {
     if (!text.startsWith('@Pjotter-AI')) return false
     const question = text.replace('@Pjotter-AI', '').trim()
     if (!question) return true
-    // Add user message first
-    setComposer(question)
-    await sendMessage()
-    // Then call backend and append assistant message
+    if (!activeChatId) return true
+
+    // Read chat settings
     try {
+      const cdoc = await getDoc(doc(db, 'chats', activeChatId))
+      const cfg: any = cdoc.data() || {}
+      const enabled = cfg.aiEnabled !== false // default on
+      const includeHistory = cfg.aiIncludeHistory === true // default off unless set true
+      if (!enabled) { setWarn('Pjotter‑AI is uitgeschakeld voor deze chat.'); return true }
+
+      // Add user message first
+      setComposer(question)
+      await sendMessage()
+
+      // Prepare context
       setBotStage('thinking')
-      const timer = setTimeout(()=> setBotStage('typing'), 3000)
+      setTimeout(()=> setBotStage('typing'), 3000)
       const sys = { role: 'system', content: 'Je bent Pjotter-AI in een chatroom. Antwoord kort en concreet in het Nederlands.' }
       const usr = { role: 'user', content: question }
-      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [sys, usr] }) })
+      let payloadMsgs: any[] = [sys]
+      if (includeHistory) {
+        const last = messages.slice(-20) // cap
+        const mapped = last.map(m => {
+          if (m.sender === 'bot:Pjotter') return { role: 'assistant', content: m.text || '' }
+          if (m.sender === uid) return { role: 'user', content: m.text || '' }
+          return { role: 'user', content: m.text || '' }
+        }).filter(x=>x.content)
+        payloadMsgs = payloadMsgs.concat(mapped)
+      }
+      payloadMsgs.push(usr)
+
+      const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: payloadMsgs }) })
       const data = await res.json().catch(()=>({choices:[{message:{content:"(geen antwoord)"}}]}))
       const content = data?.choices?.[0]?.message?.content || '(geen antwoord)'
-      if (activeChatId) {
-        await addDoc(collection(db, 'chats', activeChatId, 'messages'), { sender: 'bot:Pjotter', text: content, createdAt: serverTimestamp() })
-      }
+      await addDoc(collection(db, 'chats', activeChatId, 'messages'), { sender: 'bot:Pjotter', text: content, createdAt: serverTimestamp() })
     } finally {
       setBotStage('idle')
     }
     return true
-  }, [activeChatId, sendMessage])
+  }, [activeChatId, messages, uid, sendMessage])
 
   const onComposerSubmit = useCallback(async () => {
     const text = composer.trim()
@@ -410,8 +430,27 @@ export default function ChatPage() {
     return (
       <>
         <Header currentPage="chat" />
-        <main className="container mx-auto px-4 pt-24 pb-8">
-          <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-gray-200">Log in om te chatten.</div>
+        <main className="container mx-auto px-4 pt-24 pb-16">
+          <div className="max-w-2xl mx-auto p-6 rounded-2xl bg-slate-900/70 backdrop-blur-md border border-slate-800 shadow-xl">
+            <div className="text-2xl font-semibold text-white">Om de chat functie te gebruiken moet je inloggen</div>
+            <div className="mt-1 text-sm text-gray-300">Een account aanmaken is volledig gratis en er zijn geen verborgen kosten.</div>
+            <div className="mt-4">
+              <div className="text-sm text-gray-400 mb-1">Functies die je nog meer ontgrendelt:</div>
+              <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+                <li>Feedback</li>
+                <li>Pjotter-AI (vanaf 2 oktober)</li>
+                <li>Proxy</li>
+                <li>History</li>
+              </ul>
+            </div>
+            <div className="mt-5 p-3 rounded-lg bg-slate-950/50 border border-slate-800">
+              <div className="text-sm text-gray-200">Dank je wel voor het gebruiken van CatGames!</div>
+              <div className="mt-1 text-xs text-gray-400">Omdat bij deze functies er data extern wordt opgeslagen is een account verplicht, wij hopen dat dit niet de plezier van het game en films kijken af haalt.</div>
+            </div>
+            <div className="mt-5">
+              <a href="/account" className="inline-block px-4 py-2 rounded-md bg-emerald-600 text-white text-sm">Inloggen / Account aanmaken</a>
+            </div>
+          </div>
         </main>
       </>
     )
