@@ -91,6 +91,8 @@ export default function ChatPage() {
       setChats(arr.sort((a,b)=> (a.name||'').localeCompare(b.name||'')))
       if (!activeChatId && arr.length) setActiveChatId(arr[0].id)
       setLoading(false)
+    }, (err) => {
+      console.error('[Chat] onSnapshot(chats where members contains uid) error:', err)
     })
     return () => off()
   }, [uid])
@@ -109,6 +111,8 @@ export default function ChatPage() {
       snap.forEach(d => arr.push({ id: d.id, ...d.data() }))
       setMessages(arr)
       try { localStorage.setItem(chatCacheKey(activeChatId), JSON.stringify(arr)) } catch {}
+    }, (err) => {
+      console.error('[Chat] onSnapshot(messages) error for chat:', activeChatId, err)
     })
     return () => off()
   }, [activeChatId])

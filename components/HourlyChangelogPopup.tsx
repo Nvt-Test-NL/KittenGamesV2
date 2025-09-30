@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react"
 import { getDb } from "../lib/firebase/client"
-import { collection, onSnapshot, orderBy, query, where, limit } from "firebase/firestore"
+import { collection, onSnapshot } from "firebase/firestore"
 
 const LS_KEY = 'kg_hourly_popup_last_v1'
 
@@ -21,12 +21,13 @@ export default function HourlyChangelogPopup() {
   }, [])
 
   useEffect(() => {
-    // Load considering items (optional)
-    const qy = query(collection(db,'feedbackIdeas'), where('status','==','considering'), orderBy('createdAt','desc'), limit(5))
-    const off = onSnapshot(qy, snap => {
-      const arr: Array<{id:string,title:string,detail:string}> = []
-      snap.forEach(d=>{ const x = d.data() as any; arr.push({ id: d.id, title: x.title||'', detail: x.detail||'' }) })
-      setItems(arr)
+    // Load and filter client-side to avoid composite index requirements
+    const off = onSnapshot(collection(db,'feedbackIdeas'), snap => {
+      const all: Array<{id:string,title:string,detail:string, createdAt?: any, status?: string}> = []
+      snap.forEach(d=>{ const x = d.data() as any; all.push({ id: d.id, title: x.title||'', detail: x.detail||'', createdAt: x.createdAt, status: x.status }) })
+      const considering = all.filter(x => x.status === 'considering')
+      considering.sort((a,b)=> (b.createdAt?.toMillis?.()||0) - (a.createdAt?.toMillis?.()||0))
+      setItems(considering.slice(0,5))
     })
     return () => off()
   }, [db])
