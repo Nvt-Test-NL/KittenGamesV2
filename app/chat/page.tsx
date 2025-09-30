@@ -129,7 +129,7 @@ export default function ChatPage() {
       if (!raw.includes('@') && raw.length >= 20) { found.push(raw); continue }
       const em = raw
       try {
-        const cg = query(collectionGroup(db, 'profile'), where('emailLower', '==', em))
+        const cg = query(collectionGroup(db, 'profile'), where('isPublic','==', true), where('emailLower', '==', em))
         const snaps = await getDocs(cg)
         if (!snaps.empty) {
           // derive uid from path: users/{uid}/profile/{doc}
@@ -140,7 +140,7 @@ export default function ChatPage() {
           if (uid) found.push(uid)
         } else {
           // try by displayName contains (visible only)
-          const qv = query(collectionGroup(db, 'profile'), where('searchVisible','==', true))
+          const qv = query(collectionGroup(db, 'profile'), where('isPublic','==', true), where('searchVisible','==', true))
           const snap2 = await getDocs(qv)
           let matched = false
           snap2.forEach(d => {
