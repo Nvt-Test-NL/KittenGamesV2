@@ -77,6 +77,7 @@ export default function ChatPage() {
   const [showSearch, setShowSearch] = useState(false)
   const [chatFilterText, setChatFilterText] = useState("")
   const [chatFilterType, setChatFilterType] = useState<'all'|'dm'|'group'>('all')
+  const [botStage, setBotStage] = useState<'idle'|'thinking'|'typing'>('idle')
 
   // Init
   useEffect(() => {
@@ -113,11 +114,14 @@ export default function ChatPage() {
   }, [activeChatId])
 
   // Resolve profile emails -> UIDs using collectionGroup('profile') where email == value
-  const resolveEmailsToUids = useCallback(async (emails: string[]): Promise<string[]> => {
-    const unique = Array.from(new Set(emails.map(e=>e.toLowerCase())))
+  const resolveEmailsToUids = useCallback(async (inputs: string[]): Promise<string[]> => {
+    const unique = Array.from(new Set(inputs.map(e=>e.trim().toLowerCase())))
     const found: string[] = []
     const notFound: string[] = []
-    for (const em of unique) {
+    for (const raw of unique) {
+      // accept direct UID
+      if (!raw.includes('@') && raw.length >= 20) { found.push(raw); continue }
+      const em = raw
       try {
         const cg = query(collectionGroup(db, 'profile'), where('emailLower', '==', em))
         const snaps = await getDocs(cg)
@@ -129,10 +133,22 @@ export default function ChatPage() {
           const uid = segments[i+1]
           if (uid) found.push(uid)
         } else {
-          notFound.push(em)
+          // try by displayName contains (visible only)
+          const qv = query(collectionGroup(db, 'profile'), where('searchVisible','==', true))
+          const snap2 = await getDocs(qv)
+          let matched = false
+          snap2.forEach(d => {
+            const seg = d.ref.path.split('/')
+            if (seg[seg.length-1] !== 'public') return
+            const i2 = seg.indexOf('users')
+            const uid2 = seg[i2+1]
+            const dn = (d.data() as any)?.displayName || ''
+            if (dn.toLowerCase().includes(raw)) { matched = true; if (uid2) found.push(uid2) }
+          })
+          if (!matched) notFound.push(raw)
         }
       } catch {
-        notFound.push(em)
+        notFound.push(raw)
       }
     }
     if (notFound.length) setWarn(`Kon geen gebruikers vinden voor: ${notFound.join(', ')}`)
@@ -167,6 +183,8 @@ export default function ChatPage() {
     await sendMessage()
     // Then call backend and append assistant message
     try {
+      setBotStage('thinking')
+      const timer = setTimeout(()=> setBotStage('typing'), 3000)
       const sys = { role: 'system', content: 'Je bent Pjotter-AI in een chatroom. Antwoord kort en concreet in het Nederlands.' }
       const usr = { role: 'user', content: question }
       const res = await fetch('/api/ai/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [sys, usr] }) })
@@ -175,7 +193,9 @@ export default function ChatPage() {
       if (activeChatId) {
         await addDoc(collection(db, 'chats', activeChatId, 'messages'), { sender: 'bot:Pjotter', text: content, createdAt: serverTimestamp() })
       }
-    } finally {}
+    } finally {
+      setBotStage('idle')
+    }
     return true
   }, [activeChatId, sendMessage])
 
@@ -334,6 +354,16 @@ export default function ChatPage() {
                       </div>
                     </div>
                   ))}
+                  {botStage !== 'idle' && (
+                    <div className="max-w-[85%]">
+                      <div className="mt-1 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/70 border border-slate-700">
+                        <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '120ms' }} />
+                        <div className="w-2 h-2 rounded-full bg-cyan-400 animate-bounce" style={{ animationDelay: '240ms' }} />
+                        <span className="ml-2 text-sm text-gray-300">{botStage==='thinking' ? 'Pjotter-AI is aan het denken…' : 'Pjotter-AI is aan het typen…'}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="border-t border-slate-800 pt-2">
                   {imgPreview && (
