@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react"
 import { getDb, getFirebaseAuth } from "../lib/firebase/client"
-import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore"
+import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, doc } from "firebase/firestore"
 
 interface Msg { id: string; uid: string; text: string; displayName?: string|null; createdAt?: any }
 
@@ -13,6 +13,8 @@ export default function CommunityGeneralChat({ channelId = 'general', onOpenUser
   const [text, setText] = useState("")
   const [msgs, setMsgs] = useState<Msg[]>([])
   const listRef = useRef<HTMLDivElement|null>(null)
+  const [showRules, setShowRules] = useState(false)
+  const RULES_KEY = 'kg_comm_rules_accept_v1'
 
   useEffect(() => {
     const auth = getFirebaseAuth()
@@ -32,6 +34,9 @@ export default function CommunityGeneralChat({ channelId = 'general', onOpenUser
 
   const send = async () => {
     if (!uid) return
+    // Check rules acceptance
+    const accepted = (()=>{ try { return localStorage.getItem(RULES_KEY)==='1' } catch { return false } })()
+    if (!accepted) { setShowRules(true); return }
     const t = text.trim()
     if (!t) return
     setText("")
@@ -84,6 +89,31 @@ export default function CommunityGeneralChat({ channelId = 'general', onOpenUser
         <button onClick={send} disabled={!uid || !text.trim()} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm disabled:opacity-50">Verstuur</button>
       </div>
       {!uid && <div className="px-4 pb-3 text-xs text-gray-400">Log in via Settings om mee te praten.</div>}
+      {showRules && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>setShowRules(false)} />
+          <div className="relative w-full max-w-lg mx-auto rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
+            <div className="text-white font-semibold mb-2">Community regels</div>
+            <div className="text-sm text-gray-300 space-y-2 mb-4">
+              <p>- Geen beledigingen, haat of NSFW.</p>
+              <p>- Geen spam/advertenties.</p>
+              <p>- Respecteer privacy: deel geen persoonlijke gegevens.</p>
+              <p>- Overtreding kan tot blokkade leiden.</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={()=>setShowRules(false)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Annuleren</button>
+              <button onClick={async()=>{
+                try {
+                  localStorage.setItem(RULES_KEY,'1')
+                  if (uid) {
+                    await setDoc(doc(db,'users',uid,'agreements','public'), { communityRulesAccepted: true, updatedAt: serverTimestamp() }, { merge: true })
+                  }
+                } finally { setShowRules(false) }
+              }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Akkoord</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

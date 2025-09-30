@@ -55,6 +55,18 @@ export default function CommunityPage() {
               <div className="flex items-center gap-2 text-white font-medium"><PlaySquare className="w-4 h-4"/>Updates</div>
               <div className="text-xs text-gray-400 mt-1">Nieuw en changelog</div>
             </Link>
+            <Link href="/codingkitten" className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:bg-slate-800/60 transition block">
+              <div className="flex items-center gap-2 text-white font-medium"><Info className="w-4 h-4"/>CodingKitten</div>
+              <div className="text-xs text-gray-400 mt-1">Video / credits & toegang</div>
+            </Link>
+            <Link href="/feedback" className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:bg-slate-800/60 transition block">
+              <div className="flex items-center gap-2 text-white font-medium"><Info className="w-4 h-4"/>Feedback</div>
+              <div className="text-xs text-gray-400 mt-1">Ideeën en stemmen</div>
+            </Link>
+            <Link href="/policies" className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 hover:bg-slate-800/60 transition block">
+              <div className="flex items-center gap-2 text-white font-medium"><Info className="w-4 h-4"/>Beleiden</div>
+              <div className="text-xs text-gray-400 mt-1">AI / Opslag / Community regels</div>
+            </Link>
           </div>
         </section>
 
