@@ -45,6 +45,7 @@ export default function AccountSettingsPanel() {
             emailLower,
             displayName: auth.currentUser.displayName || null,
             searchVisible: true,
+            isPublic: true,
             updatedAt: serverTimestamp(),
           }, { merge: true })
         } catch {}
@@ -70,6 +71,7 @@ export default function AccountSettingsPanel() {
             emailLower,
             displayName: displayName.trim() || auth.currentUser.displayName || null,
             searchVisible: true,
+            isPublic: true,
             updatedAt: serverTimestamp(),
           }, { merge: true })
         } catch {}
@@ -114,7 +116,7 @@ export default function AccountSettingsPanel() {
               const v = e.target.checked; setSearchVisible(v)
               try {
                 const auth = getFirebaseAuth(); if (!auth.currentUser) return;
-                await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), { searchVisible: v, updatedAt: serverTimestamp() }, { merge: true })
+                await setDoc(doc(getDb(), 'users', auth.currentUser.uid, 'profile', 'public'), { searchVisible: v, isPublic: true, updatedAt: serverTimestamp() }, { merge: true })
                 setMessage(v? 'Je bent vindbaar in Zoek chat.' : 'Je bent verborgen in de gebruikerslijst.')
               } catch(e:any) { setMessage(String(e?.message||e)) }
             }} className="accent-emerald-500" />

@@ -28,7 +28,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
       console.debug('[UserSearch] loadDefault start, uid=', uid)
       if (!uid) { console.debug('[UserSearch] no uid, abort'); setItems([]); return }
       // List visible users (no efficient ORDER BY without index; keep simple and small)
-      const qv = query(collectionGroup(db, 'profile'), where('searchVisible', '==', true), limit(30))
+      const qv = query(collectionGroup(db, 'profile'), where('isPublic','==', true), where('searchVisible', '==', true), limit(30))
       console.debug('[UserSearch] query default:', { cg: 'profile', where: 'searchVisible==true', limit: 30 })
       const snap = await getDocs(qv)
       const arr: PublicProfile[] = []
@@ -57,7 +57,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
       if (!uid) { console.debug('[UserSearch] no uid, abort'); setItems([]); return }
       const emailLower = term.includes('@')? term.toLowerCase() : undefined
       if (emailLower) {
-        const q1 = query(collectionGroup(db, 'profile'), where('emailLower','==', emailLower))
+        const q1 = query(collectionGroup(db, 'profile'), where('isPublic','==', true), where('emailLower','==', emailLower))
         console.debug('[UserSearch] query exact email:', { cg: 'profile', where: `emailLower==${emailLower}` })
         const snap = await getDocs(q1)
         const arr: PublicProfile[] = []
@@ -74,7 +74,7 @@ export default function UserSearchModal({ onClose, onStartDM }: Props) {
         console.debug('[UserSearch] exact count:', arr.length)
       } else {
         // Fallback: fetch visible list and filter by displayName contains (client-side)
-        const qv = query(collectionGroup(db, 'profile'), where('searchVisible', '==', true), limit(50))
+        const qv = query(collectionGroup(db, 'profile'), where('isPublic','==', true), where('searchVisible', '==', true), limit(50))
         console.debug('[UserSearch] query by displayName (client filter):', { cg: 'profile', where: 'searchVisible==true', limit: 50 })
         const snap = await getDocs(qv)
         const arr: PublicProfile[] = []

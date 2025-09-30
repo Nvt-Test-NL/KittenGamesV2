@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Header from "../../components/Header"
 import UserSearchModal from "../../components/UserSearchModal"
 import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
-import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, where } from "firebase/firestore"
+import { addDoc, collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
 
 // Firestore data model (MVP)
 // chats/{chatId}: { name?: string, isGroup: boolean, members: string[], createdAt, createdBy }
@@ -35,7 +35,7 @@ async function ensureUserProfile(uid: string, email?: string|null, displayName?:
   try {
     const ref = doc(db, 'users', uid, 'profile', 'public')
     const emailLower = (email || '').toLowerCase() || null
-    await setDoc(ref, { email: email || null, emailLower, displayName: displayName || null, updatedAt: serverTimestamp() }, { merge: true })
+    await setDoc(ref, { email: email || null, emailLower, displayName: displayName || null, searchVisible: true, isPublic: true, updatedAt: serverTimestamp() }, { merge: true })
   } catch {}
 }
 
@@ -78,6 +78,8 @@ export default function ChatPage() {
   const [chatFilterText, setChatFilterText] = useState("")
   const [chatFilterType, setChatFilterType] = useState<'all'|'dm'|'group'>('all')
   const [botStage, setBotStage] = useState<'idle'|'thinking'|'typing'>('idle')
+  const [showCodeLink, setShowCodeLink] = useState(false)
+  const [codeInput, setCodeInput] = useState("")
 
   // Init
   useEffect(() => {
@@ -279,6 +281,64 @@ export default function ChatPage() {
     setCreatingGroup(false); setGroupName(""); setGroupMembers("")
   }, [uid, groupName, groupMembers, resolveEmailsToUids])
 
+  const joinByCode = useCallback(async () => {
+    if (!uid) { setWarn('Login vereist.'); return }
+    let code = codeInput.trim()
+    if (!code) { setWarn('Voer een code of link in.'); return }
+    // Extract from full link if needed
+    try {
+      if (code.includes('http')) {
+        const u = new URL(code)
+        const q = u.searchParams.get('code')
+        if (q) code = q
+        else if (u.pathname.includes('/invite')) {
+          // fallback: last segment might be the code (not in our current format but safe guard)
+          code = u.pathname.split('/').pop() || code
+        }
+      } else if (code.startsWith('invite?code=')) {
+        code = code.substring('invite?code='.length)
+      } else if (code.startsWith('?code=')) {
+        code = code.substring('?code='.length)
+      }
+    } catch {}
+    if (!code) { setWarn('Kon geen code vinden in de invoer.'); return }
+
+    try {
+      // find invite by code
+      const qx = query(collection(db, 'invites'), where('code','==', code))
+      const snaps = await getDocs(qx)
+      if (snaps.empty) { setWarn('Uitnodiging niet gevonden of al gebruikt.'); return }
+      const inviteDoc = snaps.docs[0]
+      const inv = inviteDoc.data() as any
+      if (inv.used) { setWarn('Uitnodiging is al gebruikt.'); return }
+      const other = inv.fromUid as string
+      if (!other || other === uid) { setWarn('Ongeldige uitnodiging.'); return }
+
+      // create/find DM
+      const a = uid < other ? uid : other
+      const b = uid < other ? other : uid
+      const pairKey = `${a}_${b}`
+      const qdm = query(collection(db, 'chats'), where('pairKey','==', pairKey), where('isGroup','==', false))
+      const dmSnaps = await getDocs(qdm)
+      if (!dmSnaps.empty) {
+        setActiveChatId(dmSnaps.docs[0].id)
+      } else {
+        const ref = await addDoc(collection(db, 'chats'), { isGroup: false, pairKey, members: [a,b], createdAt: serverTimestamp(), createdBy: uid })
+        setActiveChatId(ref.id)
+      }
+
+      // try to mark used (requires auth, we have it here)
+      try {
+        await updateDoc(doc(db, 'invites', inviteDoc.id), { used: true, usedAt: serverTimestamp(), usedBy: uid })
+      } catch {}
+
+      setShowCodeLink(false)
+      setCodeInput("")
+    } catch (e:any) {
+      setWarn(String(e?.message||e))
+    }
+  }, [uid, codeInput, db])
+
   if (!uid) {
     return (
       <>
@@ -303,6 +363,7 @@ export default function ChatPage() {
               <div className="text-xs text-gray-400 mb-1">Snel acties</div>
               <div className="flex gap-2">
                 <button onClick={()=>setShowSearch(true)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-100 text-sm">Zoek gebruiker</button>
+                <button onClick={()=>setShowCodeLink(true)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-100 text-sm">Code-link</button>
               </div>
             </div>
             <div className="mb-3">
@@ -395,6 +456,25 @@ export default function ChatPage() {
         </div>
       </main>
       {showSearch && <UserSearchModal onClose={()=>setShowSearch(false)} onStartDM={startDMByUid} />}
+      {showCodeLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>setShowCodeLink(false)} />
+          <div className="relative w-full max-w-md mx-auto rounded-2xl border border-slate-800 bg-slate-900/85 p-5 shadow-xl">
+            <div className="text-white font-semibold mb-2">Code-link</div>
+            <div className="text-sm text-gray-300 mb-2">Plak hier de uitnodigingslink of alleen de code.</div>
+            <input
+              value={codeInput}
+              onChange={(e)=>setCodeInput(e.target.value)}
+              placeholder="https://catgames-reborn.vercel.app/invite?code=... of alleen de code"
+              className="w-full glass-input rounded-md px-3 py-2 text-sm"
+            />
+            <div className="flex justify-end gap-2 mt-3">
+              <button onClick={()=>setShowCodeLink(false)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Annuleren</button>
+              <button onClick={joinByCode} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Ga verder</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
