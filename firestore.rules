@@ -41,6 +41,11 @@ service cloud.firestore {
     }
 
     // Community channels: public read, post only when signed-in. Admins may delete.
+    // Allow reading channel docs to enumerate channels
+    match /community/{channel} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
     match /community/{channel}/messages/{doc} {
       allow read: if true;
       allow create: if request.auth != null

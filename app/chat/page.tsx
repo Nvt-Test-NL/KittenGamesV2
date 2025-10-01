@@ -93,6 +93,7 @@ export default function ChatPage() {
   const [consentAI, setConsentAI] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
   const [chatInfoTab, setChatInfoTab] = useState<'info'|'media'|'encrypt'|'groups'>('info')
+  const [aiSystemPrompt, setAiSystemPrompt] = useState("")
 
   // Init
   useEffect(() => {
@@ -173,6 +174,26 @@ export default function ChatPage() {
       if (Object.keys(map).length) setProfiles(prev=> ({...prev, ...map}))
     })()
   }, [chats, uid])
+
+  // Fetch sender profiles used in message list
+  useEffect(() => {
+    const need: string[] = []
+    messages.forEach(m => {
+      const s = m.sender
+      if (!s) return
+      if (typeof s !== 'string') return
+      if (s.startsWith('bot:')) return
+      if (!profiles[s]) need.push(s)
+    })
+    if (!need.length) return
+    ;(async()=>{
+      const map: Record<string, any> = {}
+      for (const u of Array.from(new Set(need))) {
+        try { const snap = await getDoc(doc(db, 'publicProfiles', u)); if (snap.exists()) map[u] = snap.data() } catch {}
+      }
+      if (Object.keys(map).length) setProfiles(prev=> ({...prev, ...map}))
+    })()
+  }, [messages])
 
   // Load per-chat consent for first-time entry
   useEffect(() => {
@@ -290,7 +311,11 @@ export default function ChatPage() {
       // Prepare context
       setBotStage('thinking')
       setTimeout(()=> setBotStage('typing'), 3000)
-      const sys = { role: 'system', content: 'Je bent Pjotter-AI in een chatroom. Antwoord kort en concreet in het Nederlands.' }
+      // resolve system prompt (chat-level overrides default)
+      const sysPrompt = (cfg.aiSystemPrompt && String(cfg.aiSystemPrompt).trim().length)
+        ? String(cfg.aiSystemPrompt)
+        : 'Je bent Pjotter-AI in een chatroom voor CatGames. Antwoord kort en concreet in het Nederlands.'
+      const sys = { role: 'system', content: sysPrompt }
       const usr = { role: 'user', content: question }
       let payloadMsgs: any[] = [sys]
       if (includeHistory) {
@@ -710,6 +735,8 @@ export default function ChatPage() {
                       <input value={chatNameInput} onChange={(e)=>setChatNameInput(e.target.value)} placeholder="Naam" className="mt-1 w-full glass-input rounded-md px-3 py-2 text-sm" />
                       <label className="mt-3 block text-xs text-gray-400">Beschrijving</label>
                       <textarea value={chatDescInput} onChange={(e)=>setChatDescInput(e.target.value)} placeholder="Beschrijving" className="mt-1 w-full glass-input rounded-md px-3 py-2 text-sm min-h-[90px]" />
+                      <label className="mt-3 block text-xs text-gray-400">AI systeem‑prompt (optioneel)</label>
+                      <textarea value={aiSystemPrompt} onChange={(e)=>setAiSystemPrompt(e.target.value)} placeholder="Bijv. Je bent Pjotter‑AI voor CatGames; spreek kort, vriendelijk en in NL; ..." className="mt-1 w-full glass-input rounded-md px-3 py-2 text-sm min-h-[80px]" />
                     </div>
                     <div className="rounded-xl bg-slate-950/50 border border-slate-800 p-3 space-y-2">
                       <div className="flex items-center gap-2">
@@ -746,8 +773,8 @@ export default function ChatPage() {
                       <button onClick={()=>setShowChatInfo(false)} className="px-3 py-2 rounded-md bg-slate-800 border border-slate-700 text-gray-200 text-sm">Annuleren</button>
                       <button onClick={async()=>{
                         try {
-                          await setDoc(doc(db, 'chats', activeChatId), { name: chatNameInput || null, description: chatDescInput || null, aiEnabled, aiIncludeHistory, e2eeEnabled, updatedAt: serverTimestamp() }, { merge: true })
-                          setChats(prev => prev.map(c => c.id===activeChatId? { ...c, name: chatNameInput||null, description: chatDescInput||null, aiEnabled, aiIncludeHistory, e2eeEnabled } : c))
+                          await setDoc(doc(db, 'chats', activeChatId), { name: chatNameInput || null, description: chatDescInput || null, aiEnabled, aiIncludeHistory, aiSystemPrompt: aiSystemPrompt || null, e2eeEnabled, updatedAt: serverTimestamp() }, { merge: true })
+                          setChats(prev => prev.map(c => c.id===activeChatId? { ...c, name: chatNameInput||null, description: chatDescInput||null, aiEnabled, aiIncludeHistory, aiSystemPrompt: aiSystemPrompt||null, e2eeEnabled } : c))
                           setShowChatInfo(false)
                         } catch(e:any) { setWarn(String(e?.message||e)) }
                       }} className="px-3 py-2 rounded-md bg-emerald-600 text-white text-sm">Opslaan</button>

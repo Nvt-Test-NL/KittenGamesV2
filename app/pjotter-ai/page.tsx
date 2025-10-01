@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "../../components/Header";
+import { getFirebaseAuth } from "../../lib/firebase/client";
 
 interface ChatMessage {
   role: "system" | "user" | "assistant";
@@ -24,6 +25,7 @@ export default function PjotterAIPage() {
   const router = useRouter();
   const CONSENT_KEY = "pjotter_ai_consent_v1";
   const UNLOCK_KEY = "ck_credit_unlocked_v1";
+  const [uid, setUid] = useState<string | null>(null);
 
   // Multi-session state
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -49,6 +51,12 @@ export default function PjotterAIPage() {
 
   // Load sessions from localStorage (with migration from single STORAGE_KEY)
   useEffect(() => {
+    // Auth guard
+    try {
+      const auth = getFirebaseAuth();
+      const off = auth.onAuthStateChanged((u)=>{ setUid(u?.uid || null) })
+      // we do not return here because we also need to init local state
+    } catch {}
     // Check consent first
     try {
       const c = localStorage.getItem(CONSENT_KEY);
@@ -195,6 +203,7 @@ export default function PjotterAIPage() {
   };
 
   const onSend = async () => {
+    if (!uid) { alert("Log in om Pjotter‑AI te gebruiken."); return }
     if (!canSend || isLoading) return;
     if (!consented) return;
     setIsLoading(true);
@@ -303,6 +312,32 @@ export default function PjotterAIPage() {
     try { localStorage.setItem(UNLOCK_KEY, "true"); } catch {}
     setUnlocked(true);
     setShowUnlockModal(false);
+  }
+
+  // Show guard when not logged in
+  if (!uid) {
+    return (
+      <div className="min-h-screen bg-gray-950">
+        <Header currentPage="pjotter-ai" />
+        <main className="container mx-auto px-4 pt-24 pb-16">
+          <div className="max-w-2xl mx-auto p-6 rounded-2xl bg-slate-900/70 backdrop-blur-md border border-slate-800 shadow-xl">
+            <div className="text-2xl font-semibold text-white">Om Pjotter‑AI te gebruiken moet je inloggen</div>
+            <div className="mt-1 text-sm text-gray-300">Een account aanmaken is volledig gratis en er zijn geen verborgen kosten.</div>
+            <div className="mt-4">
+              <div className="text-sm text-gray-400 mb-1">Wat je dan kunt:</div>
+              <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
+                <li>Chatten met Pjotter‑AI (multimodaal)</li>
+                <li>Geschiedenis van gesprekken lokaal bewaren</li>
+                <li>Directe zoek‑ en open‑acties voor games</li>
+              </ul>
+            </div>
+            <div className="mt-5">
+              <a href="/settings?tab=account" className="inline-block px-4 py-2 rounded-md bg-emerald-600 text-white text-sm">Inloggen / Account aanmaken</a>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
