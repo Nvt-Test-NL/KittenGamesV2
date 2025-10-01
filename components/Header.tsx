@@ -427,14 +427,13 @@ export default function Header({
           </div>
         </div>
       )}
-    </div>
-  )
+
       <CategoryDropdown
         isOpen={isCategoryOpen}
         onClose={() => setIsCategoryOpen(false)}
         onCategoryChange={(category) => {
           setSelectedCategory(category)
-{{ ... }}
+          if (onCategoryChange) onCategoryChange(category)
           setIsCategoryOpen(false)
         }}
         anchorRect={buttonRect}
