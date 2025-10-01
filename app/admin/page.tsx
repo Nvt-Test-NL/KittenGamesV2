@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react"
 import Header from "../../components/Header"
 import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
-import { addDoc, collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
 
 export default function AdminPage() {
   const db = getDb()
@@ -35,23 +35,33 @@ export default function AdminPage() {
     ;(async()=>{
       try {
         // Feedback ideas
-        const iq = query(collection(db, 'feedbackIdeas'))
-        const isnap = await getDocs(iq)
-        const iarr: any[] = []
-        isnap.forEach(d=> iarr.push({ id: d.id, ...d.data() }))
-        setIdeas(iarr)
-        // Community messages via collectionGroup then filter by path
-        const cg = query(collectionGroup(db, 'messages'), limit(50))
-        const cgs = await getDocs(cg)
-        const carr: any[] = []
-        cgs.forEach(d=>{ if (d.ref.path.includes('/community/')) carr.push({ id: d.id, path: d.ref.path, ...d.data() }) })
-        setCommunityMsgs(carr)
+        try {
+          const iq = query(collection(db, 'feedbackIdeas'))
+          const isnap = await getDocs(iq)
+          const iarr: any[] = []
+          isnap.forEach(d=> iarr.push({ id: d.id, ...d.data() }))
+          setIdeas(iarr)
+        } catch(e:any) { setWarn(prev=> (prev? prev+" | ":"") + `feedbackIdeas: ${String(e?.message||e)}`) }
+
+        // Community messages: enumerate channels then read their messages
+        try {
+          const channelsSnap = await getDocs(collection(db, 'community'))
+          const carr: any[] = []
+          for (const ch of channelsSnap.docs) {
+            const msgs = await getDocs(query(collection(db, 'community', ch.id, 'messages'), limit(50)))
+            msgs.forEach(m=> carr.push({ id: m.id, channel: ch.id, path: `community/${ch.id}/messages/${m.id}`, ...m.data() }))
+          }
+          setCommunityMsgs(carr)
+        } catch(e:any) { setWarn(prev=> (prev? prev+" | ":"") + `community: ${String(e?.message||e)}`) }
+
         // All chats
-        const chs = await getDocs(query(collection(db, 'chats'), limit(50)))
-        const arr: any[] = []
-        chs.forEach(d=> arr.push({ id: d.id, ...d.data() }))
-        setAllChats(arr)
-      } catch(e:any) { setWarn(String(e?.message||e)) } finally { setLoading(false) }
+        try {
+          const chs = await getDocs(query(collection(db, 'chats'), limit(50)))
+          const arr: any[] = []
+          chs.forEach(d=> arr.push({ id: d.id, ...d.data() }))
+          setAllChats(arr)
+        } catch(e:any) { setWarn(prev=> (prev? prev+" | ":"") + `chats: ${String(e?.message||e)}`) }
+      } finally { setLoading(false) }
     })()
   }, [uid, isAdmin])
 
@@ -78,10 +88,10 @@ export default function AdminPage() {
                   <div className="text-sm text-white">{it.title || '(geen titel)'}</div>
                   <div className="text-xs text-gray-400 mb-1">{it.detail || ''}</div>
                   <div className="flex items-center gap-2">
-                    <select defaultValue={it.status||'mogelijk'} onChange={async(e)=>{ try { await updateDoc(doc(db, 'feedbackIdeas', it.id), { status: e.target.value, updatedAt: serverTimestamp() }); } catch(err:any){ setWarn(String(err?.message||err)) } }} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-gray-200">
-                      <option value="mogelijk">mogelijk</option>
-                      <option value="meebezig">meebezig</option>
-                      <option value="klaar">klaar</option>
+                    <select defaultValue={it.status||'mogelijk'} onChange={async(e)=>{ const val = e.target.value; try { await updateDoc(doc(db, 'feedbackIdeas', it.id), { status: val, updatedAt: serverTimestamp() }); setIdeas(prev=> prev.map(x=> x.id===it.id? { ...x, status: val } : x)) } catch(err:any){ setWarn(String(err?.message||err)) } }} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-gray-200">
+                      <option value="considering">mogelijk</option>
+                      <option value="in_progress">meebezig</option>
+                      <option value="done">done</option>
                     </select>
                   </div>
                 </div>
@@ -101,7 +111,7 @@ export default function AdminPage() {
                     <div className="text-xs text-gray-400 break-all">{m.path}</div>
                     <div className="text-sm text-white">{m.text || '(media/geen tekst)'}</div>
                   </div>
-                  <button onClick={async()=>{ try { await deleteDoc(doc(db, m.path)); setCommunityMsgs(prev=> prev.filter(x=>x.path!==m.path)) } catch(err:any){ setWarn(String(err?.message||err)) } }} className="px-2 py-1 rounded bg-rose-600 text-white text-xs">Verwijder</button>
+                  <button onClick={async()=>{ try { await deleteDoc(doc(db, 'community', m.channel, 'messages', m.id)); setCommunityMsgs(prev=> prev.filter(x=> !(x.channel===m.channel && x.id===m.id))) } catch(err:any){ setWarn(String(err?.message||err)) } }} className="px-2 py-1 rounded bg-rose-600 text-white text-xs">Verwijder</button>
                 </div>
               ))}
             </div>
