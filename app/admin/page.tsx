@@ -111,7 +111,24 @@ export default function AdminPage() {
                     <div className="text-xs text-gray-400 break-all">{m.path}</div>
                     <div className="text-sm text-white">{m.text || '(media/geen tekst)'}</div>
                   </div>
-                  <button onClick={async()=>{ try { await deleteDoc(doc(db, 'community', m.channel, 'messages', m.id)); setCommunityMsgs(prev=> prev.filter(x=> !(x.channel===m.channel && x.id===m.id))) } catch(err:any){ setWarn(String(err?.message||err)) } }} className="px-2 py-1 rounded bg-rose-600 text-white text-xs">Verwijder</button>
+                  <button onClick={async()=>{ try {
+                    await deleteDoc(doc(db, 'community', m.channel, 'messages', m.id));
+                    setCommunityMsgs(prev=> prev.filter(x=> !(x.channel===m.channel && x.id===m.id)))
+                    // Create notice for author on next login
+                    const targetUid = (m.uid || m.userId || '').trim()
+                    if (targetUid) {
+                      await addDoc(collection(db, 'users', targetUid, 'notices'), {
+                        type: 'community_delete',
+                        channel: m.channel,
+                        messageId: m.id,
+                        removedAt: serverTimestamp(),
+                        textPreview: m.text || null,
+                        reason: 'Bericht verwijderd wegens overtreden beleid.',
+                        firstWarning: true,
+                        read: false
+                      })
+                    }
+                  } catch(err:any){ setWarn(String(err?.message||err)) } }} className="px-2 py-1 rounded bg-rose-600 text-white text-xs">Verwijder</button>
                 </div>
               ))}
             </div>

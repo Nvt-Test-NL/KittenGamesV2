@@ -24,6 +24,11 @@ service cloud.firestore {
       return request.auth != null &&
         get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.isAdmin == true;
     }
+    // Optional: super admin level 2
+    function isAdmin2() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/publicProfiles/$(request.auth.uid)).data.isAdmin2 == true;
+    }
 
     // Chats/rooms: only members or admins
     match /chats/{chatId} {
@@ -78,14 +83,26 @@ service cloud.firestore {
         && request.resource.data.motivation is string;
       allow read, update, delete: if isAdmin();
     }
-
     // PublicProfiles mirror for simpler queries (no collectionGroup)
     match /publicProfiles/{uid} {
       allow read: if request.auth != null;
       // owners can write, admins can write others (e.g., suspend)
       allow write: if request.auth != null && (
-        request.auth.uid == uid || isAdmin()
+        request.auth.uid == uid || isAdmin() || isAdmin2()
       );
     }
+
+    // User notices for policy violations (shown on next login)
+    match /users/{uid}/notices/{id} {
+      allow read: if request.auth != null && request.auth.uid == uid; // user reads own
+      allow create: if isAdmin() || isAdmin2(); // admins create notices
+      allow update: if request.auth != null && request.auth.uid == uid; // user can mark read
+      allow delete: if isAdmin2();
+    }
+
+    // Extra games catalog (public read, admin write)
+    match /games/{id} {
+      allow read: if true;
+      allow write: if isAdmin() || isAdmin2();
+    }
   }
-}

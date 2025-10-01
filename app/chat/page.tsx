@@ -656,18 +656,31 @@ export default function ChatPage() {
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-3 p-2">
-                  {messages.map(m => (
-                    <div key={m.id} className={`max-w-[85%] ${m.sender===uid? 'ml-auto' : ''}`}>
-                      <div className={`px-3 py-2 rounded-lg ${m.sender===uid? 'bg-emerald-600/20 text-white' : m.sender==='bot:Pjotter'? 'bg-slate-800/80 text-emerald-200' : 'bg-slate-800/80 text-gray-100'}`}>
-                        {m.text && <div className="whitespace-pre-wrap text-sm">{m.text}</div>}
-                        {m.imageDataUrl && (
-                          <div className="mt-2">
-                            <img src={m.imageDataUrl} className="max-h-64 rounded" alt="bijlage" />
+                  {messages.map(m => {
+                    const isMe = m.sender===uid
+                    const isBot = m.sender==='bot:Pjotter'
+                    const prof = !isMe && typeof m.sender==='string' ? profiles[m.sender] : null
+                    const senderName = isMe ? 'Jij' : (isBot ? 'Pjotter‑AI' : (prof?.displayName || prof?.emailLower || m.sender || 'Onbekend'))
+                    const initial = String(senderName||'?').slice(0,1).toUpperCase()
+                    return (
+                      <div key={m.id} className={`max-w-[85%] ${isMe? 'ml-auto' : ''}`}>
+                        {!isMe && (
+                          <div className="flex items-center gap-2 mb-1">
+                            <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[12px] text-emerald-300">{initial}</div>
+                            <div className="text-xs text-gray-400">{senderName}</div>
                           </div>
                         )}
+                        <div className={`px-3 py-2 rounded-lg ${isMe? 'bg-emerald-600/20 text-white ml-auto' : isBot? 'bg-slate-800/80 text-emerald-200' : 'bg-slate-800/80 text-gray-100'}`}>
+                          {m.text && <div className="whitespace-pre-wrap text-sm">{m.text}</div>}
+                          {m.imageDataUrl && (
+                            <div className="mt-2">
+                              <img src={m.imageDataUrl} className="max-h-64 rounded" alt="bijlage" />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   {botStage !== 'idle' && (
                     <div className="max-w-[85%]">
                       <div className="mt-1 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-800/70 border border-slate-700">

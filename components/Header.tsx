@@ -31,7 +31,8 @@ import MovieSearchBar from "./MovieSearchBar" // Add this import
 import CategoryDropdown from "./CategoryDropdown"
 import TabCustomizationPopup from "./TabCustomizationPopup"
 import navbarData from "../config/navbar.json"
-import { signInWithGoogle, emailLogin, emailRegister, logout, getFirebaseAuth } from "../lib/firebase/client"
+import { signInWithGoogle, emailLogin, emailRegister, logout, getFirebaseAuth, getDb } from "../lib/firebase/client"
+import { collection, doc, getDoc, getDocs, limit, query, serverTimestamp, updateDoc, where } from "firebase/firestore"
 
 // Define NavItem interface for navigation items
 interface NavItem {
@@ -98,6 +99,12 @@ export default function Header({
   const pathname = usePathname()
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const autoHideTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Notice popup state
+  const [uid, setUid] = useState<string | null>(null)
+  const [notice, setNotice] = useState<any | null>(null)
+  const [profile, setProfile] = useState<any | null>(null)
+  const db = getDb()
 
   const {
     backButtonMargin = '-mr-0.5',
@@ -181,6 +188,25 @@ export default function Header({
       }
     }
   }, [isCompact])
+
+  // Load first unread notice after login
+  useEffect(() => {
+    const auth = getFirebaseAuth()
+    return auth.onAuthStateChanged(async (u)=>{
+      setUid(u?.uid || null)
+      setNotice(null)
+      setProfile(null)
+      if (!u) return
+      try {
+        // fetch display name
+        try { const ps = await getDoc(doc(db, 'publicProfiles', u.uid)); if (ps.exists()) setProfile(ps.data()) } catch {}
+        // fetch one unread notice
+        const qn = query(collection(db, 'users', u.uid, 'notices'), where('read','==', false), limit(1))
+        const ns = await getDocs(qn)
+        if (!ns.empty) setNotice({ id: ns.docs[0].id, ...ns.docs[0].data() })
+      } catch {}
+    })
+  }, [])
 
   const shouldShowButton = (buttonId: string) => {
     if (!currentPage) return navbarConfig.alwaysVisible.includes(buttonId); // Default for undefined currentPage
