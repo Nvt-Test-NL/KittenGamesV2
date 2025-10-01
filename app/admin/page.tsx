@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react"
 import Header from "../../components/Header"
 import { getDb, getFirebaseAuth } from "../../lib/firebase/client"
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
+import { addDoc, collection, collectionGroup, deleteDoc, doc, getDoc, getDocs, limit, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore"
 
 export default function AdminPage() {
   const db = getDb()
@@ -47,9 +47,22 @@ export default function AdminPage() {
         try {
           const channelsSnap = await getDocs(collection(db, 'community'))
           const carr: any[] = []
-          for (const ch of channelsSnap.docs) {
-            const msgs = await getDocs(query(collection(db, 'community', ch.id, 'messages'), limit(50)))
-            msgs.forEach(m=> carr.push({ id: m.id, channel: ch.id, path: `community/${ch.id}/messages/${m.id}`, ...m.data() }))
+          if (!channelsSnap.empty) {
+            for (const ch of channelsSnap.docs) {
+              const msgs = await getDocs(query(collection(db, 'community', ch.id, 'messages'), limit(100)))
+              msgs.forEach(m=> carr.push({ id: m.id, channel: ch.id, path: `community/${ch.id}/messages/${m.id}`, ...m.data() }))
+            }
+          } else {
+            // Fallback: no channel docs found; use collectionGroup('messages') and extract channel from parent path
+            const cgg = await getDocs(query(collectionGroup(db, 'messages'), limit(200)))
+            cgg.forEach(d=>{
+              const pp: any = (d.ref.parent as any).parent // DocumentReference of channel doc
+              const parentPath = pp?.path || '' // e.g., 'community/general'
+              if (parentPath.startsWith('community/')) {
+                const chId = parentPath.split('/')[1]
+                carr.push({ id: d.id, channel: chId, path: `${parentPath}/messages/${d.id}`, ...d.data() })
+              }
+            })
           }
           setCommunityMsgs(carr)
         } catch(e:any) { setWarn(prev=> (prev? prev+" | ":"") + `community: ${String(e?.message||e)}`) }
