@@ -406,13 +406,35 @@ export default function Header({
       <div className="px-3 pt-3">
         {headerContent}
       </div>
-      
+      {/* Notice popup */}
+      {uid && notice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onClick={()=>setNotice(null)} />
+          <div className="relative z-10 w-[92%] max-w-lg rounded-2xl border border-slate-700 bg-slate-900/90 p-5 shadow-2xl">
+            <div className="text-white font-semibold mb-2">Bericht verwijderd door moderatie</div>
+            <div className="text-sm text-gray-300 mb-3">
+              Beste {String((profile?.displayName||'gebruiker'))},<br/>
+              Je hebt ons beleid overtreden. Daarom is onderstaand bericht verwijderd. Dit geldt als eerste waarschuwing. Bij een tweede waarschuwing kan tijdelijke schorsing volgen.
+            </div>
+            {notice.textPreview && (
+              <div className="text-xs break-words text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded p-2 mb-3">{String(notice.textPreview)}</div>
+            )}
+            <div className="text-xs text-gray-400 mb-3">Kanaal: {String(notice.channel||'-')}</div>
+            <div className="flex items-center justify-end gap-2">
+              <a href="/policies" className="px-3 py-2 rounded-md bg-slate-800 hover:bg-slate-700 text-gray-200 border border-slate-700 text-sm">Bekijk beleid</a>
+              <button onClick={async()=>{ try { await updateDoc(doc(db, 'users', uid!, 'notices', notice.id), { read: true, readAt: serverTimestamp() }) } catch {}; setNotice(null) }} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm">Gelezen</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
       <CategoryDropdown
         isOpen={isCategoryOpen}
         onClose={() => setIsCategoryOpen(false)}
         onCategoryChange={(category) => {
           setSelectedCategory(category)
-          if (onCategoryChange) onCategoryChange(category);
+{{ ... }}
           setIsCategoryOpen(false)
         }}
         anchorRect={buttonRect}
