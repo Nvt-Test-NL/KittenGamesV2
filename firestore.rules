@@ -83,6 +83,7 @@ service cloud.firestore {
         && request.resource.data.motivation is string;
       allow read, update, delete: if isAdmin();
     }
+
     // PublicProfiles mirror for simpler queries (no collectionGroup)
     match /publicProfiles/{uid} {
       allow read: if request.auth != null;
@@ -106,3 +107,4 @@ service cloud.firestore {
       allow write: if isAdmin() || isAdmin2();
     }
   }
+}
